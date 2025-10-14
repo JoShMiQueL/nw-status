@@ -21,6 +21,9 @@ jobs:
       - name: Run Release Please
         id: release
         uses: googleapis/release-please-action@v4
+        with:
+          skip-github-release: false
+          skip-labeling: false
 
   build-windows:
     name: Build Windows Executable
