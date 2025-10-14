@@ -4,15 +4,16 @@ on:
   workflow_dispatch:
     inputs:
       bump_type:
-        description: 'Version bump type'
+        description: 'Version bump type (leave as "auto" to detect from commits)'
         required: true
         type: choice
         options:
+          - auto
           - patch
           - minor
           - major
           - prerelease
-        default: 'patch'
+        default: 'auto'
 
 jobs:
   version-and-release:
@@ -48,6 +49,43 @@ jobs:
           echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
           echo "Current version: $CURRENT_VERSION"
 
+      - name: Determine bump type
+        id: determine_bump
+        run: |
+          BUMP_TYPE="${{ inputs.bump_type }}"
+          
+          if [ "$BUMP_TYPE" = "auto" ]; then
+            echo "🔍 Analyzing commits to determine bump type..."
+            
+            # Get commits since last tag
+            PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+            
+            if [ -z "$PREV_TAG" ]; then
+              COMMITS=$(git log --pretty=format:"%s" --no-merges)
+            else
+              COMMITS=$(git log ${PREV_TAG}..HEAD --pretty=format:"%s" --no-merges)
+            fi
+            
+            # Check for breaking changes (BREAKING CHANGE: or !)
+            if echo "$COMMITS" | grep -qE "^[a-z]+(\(.+\))?!:|BREAKING CHANGE:"; then
+              BUMP_TYPE="major"
+              echo "🚨 Breaking changes detected → MAJOR bump"
+            # Check for new features (feat:)
+            elif echo "$COMMITS" | grep -qE "^feat(\(.+\))?:"; then
+              BUMP_TYPE="minor"
+              echo "✨ New features detected → MINOR bump"
+            # Default to patch for fixes and other changes
+            else
+              BUMP_TYPE="patch"
+              echo "🔧 Fixes/chores detected → PATCH bump"
+            fi
+          else
+            echo "📌 Manual bump type selected: $BUMP_TYPE"
+          fi
+          
+          echo "bump_type=$BUMP_TYPE" >> $GITHUB_OUTPUT
+          echo "Final bump type: $BUMP_TYPE"
+
       - name: Check if tag exists
         id: check_tag
         run: |
@@ -64,7 +102,7 @@ jobs:
         if: steps.check_tag.outputs.exists == 'true'
         run: |
           echo "Tag already exists, bumping version..."
-          bun pm version ${{ inputs.bump_type }} --message "chore: bump version to %s"
+          bun pm version ${{ steps.determine_bump.outputs.bump_type }} --message "chore: bump version to %s"
           NEW_VERSION=$(bun pm pkg get version | tr -d '"')
           echo "New version: $NEW_VERSION"
 
