@@ -127,11 +127,7 @@ jobs:
         run: bun build src/index.ts --compile --outfile dist/nw-monitor.exe
           
       - name: Copy config files
-        run: |
-          Copy-Item .env.example dist/.env.example
-          Copy-Item config.example.json dist/config.example.json
-          Copy-Item scripts/README-dist.md dist/README.md
-        shell: pwsh
+        run: bun scripts/copy-build-files.ts
 
       - name: Create release package
         run: |
