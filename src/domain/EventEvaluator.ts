@@ -2,10 +2,10 @@
  * Event Evaluator - Detects changes based on configured triggers
  */
 
-import type { ServerStatus } from './types';
 import type { AnyEventTrigger, DetectedEvent, ThresholdEventTrigger } from './events';
 import { EventType, isThresholdTrigger } from './events';
-import { ServerState, PopulationLevel } from './types';
+import type { ServerStatus } from './types';
+import { PopulationLevel } from './types';
 
 export class EventEvaluator {
   /**
@@ -103,7 +103,7 @@ export class EventEvaluator {
         previousValue: previous.status,
         currentValue: current.status,
         message: `Server status changed from ${previous.status} to ${current.status}`,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     }
     return null;
@@ -125,7 +125,7 @@ export class EventEvaluator {
         previousValue: previous.canTransferTo,
         currentValue: current.canTransferTo,
         message,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     }
     return null;
@@ -147,7 +147,7 @@ export class EventEvaluator {
         previousValue: previous.canTransferFrom,
         currentValue: current.canTransferFrom,
         message,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     }
     return null;
@@ -169,7 +169,7 @@ export class EventEvaluator {
         previousValue: previous.canCreateCharacter,
         currentValue: current.canCreateCharacter,
         message,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     }
     return null;
@@ -197,7 +197,7 @@ export class EventEvaluator {
         previousValue: previousQueue,
         currentValue: currentQueue,
         message: `Queue exceeded threshold: ${currentQueue.toLocaleString()} (threshold: ${threshold.toLocaleString()})`,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     }
 
@@ -208,7 +208,7 @@ export class EventEvaluator {
         previousValue: previousQueue,
         currentValue: currentQueue,
         message: `Queue dropped below threshold: ${currentQueue.toLocaleString()} (threshold: ${threshold.toLocaleString()})`,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     }
 
@@ -220,7 +220,7 @@ export class EventEvaluator {
         previousValue: previousQueue,
         currentValue: currentQueue,
         message: `Queue ${action} threshold: ${currentQueue.toLocaleString()} (threshold: ${threshold.toLocaleString()})`,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     }
 
@@ -233,7 +233,7 @@ export class EventEvaluator {
     previous: ServerStatus
   ): DetectedEvent | null {
     const { threshold, direction = 'both' } = trigger.options;
-    
+
     // Convert population levels to numeric values for comparison
     const currentPop = this.populationToNumber(current.population);
     const previousPop = this.populationToNumber(previous.population);
@@ -249,7 +249,7 @@ export class EventEvaluator {
         previousValue: previous.population,
         currentValue: current.population,
         message: `Population exceeded threshold: ${current.population} (threshold: ${threshold})`,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     }
 
@@ -260,7 +260,7 @@ export class EventEvaluator {
         previousValue: previous.population,
         currentValue: current.population,
         message: `Population dropped below threshold: ${current.population} (threshold: ${threshold})`,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     }
 
@@ -272,7 +272,7 @@ export class EventEvaluator {
         previousValue: previous.population,
         currentValue: current.population,
         message: `Population ${action} threshold: ${current.population} (threshold: ${threshold})`,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     }
 

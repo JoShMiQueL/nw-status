@@ -2,8 +2,8 @@
  * Domain Interfaces - Contracts for infrastructure implementations
  */
 
-import type { ServerStatus, MonitorState, NotificationPayload, ServerStatistics } from './types';
 import type { EventConfiguration } from './events';
+import type { MonitorState, NotificationPayload, ServerStatistics, ServerStatus } from './types';
 
 /**
  * Interface for scraping server status from external sources

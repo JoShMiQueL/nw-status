@@ -10,13 +10,13 @@ export class WebhookNotificationService implements INotificationService {
   constructor(private readonly webhookUrl: string | undefined) {}
 
   async send(payload: NotificationPayload): Promise<boolean> {
-    if (!this.isConfigured()) {
+    if (!this.isConfigured() || !this.webhookUrl) {
       console.error('❌ Webhook URL not configured');
       return false;
     }
 
     try {
-      const response = await fetch(this.webhookUrl!, {
+      const response = await fetch(this.webhookUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -26,7 +26,7 @@ export class WebhookNotificationService implements INotificationService {
           server: payload.serverName,
           message: payload.message,
           data: payload.data,
-          timestamp: payload.timestamp.toISOString()
+          timestamp: payload.timestamp.toISOString(),
         }),
       });
 

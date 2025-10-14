@@ -37,8 +37,8 @@ export class TelegramBotService {
     this.allowedChatIds = new Set(
       allowedChatIds
         ?.split(',')
-        .map(id => id.trim())
-        .filter(id => id.length > 0) || []
+        .map((id) => id.trim())
+        .filter((id) => id.length > 0) || []
     );
   }
 
@@ -59,7 +59,7 @@ export class TelegramBotService {
       console.log(`   Allowed chat IDs: ${Array.from(this.allowedChatIds).join(', ')}`);
     }
     console.log('   Available commands: /status, /help');
-    
+
     this.isPolling = true;
     this.poll();
   }
@@ -90,7 +90,7 @@ export class TelegramBotService {
 
     try {
       const updates = await this.getUpdates();
-      
+
       for (const update of updates) {
         await this.handleUpdate(update);
       }
@@ -107,7 +107,7 @@ export class TelegramBotService {
    */
   private async getUpdates(): Promise<TelegramUpdate[]> {
     const url = `https://api.telegram.org/bot${this.botToken}/getUpdates`;
-    
+
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -116,7 +116,7 @@ export class TelegramBotService {
       body: JSON.stringify({
         offset: this.lastUpdateId + 1,
         timeout: 1,
-        allowed_updates: ['message']
+        allowed_updates: ['message'],
       }),
     });
 
@@ -176,7 +176,7 @@ export class TelegramBotService {
    */
   private async handleStatusCommand(chatId: number): Promise<void> {
     const state = this.getState();
-    
+
     if (state.servers.size === 0) {
       await this.sendMessage(chatId, '⚠️ No servers are being monitored yet.');
       return;
@@ -186,7 +186,7 @@ export class TelegramBotService {
 
     for (const [serverName, serverState] of state.servers.entries()) {
       const status = serverState.lastStatus;
-      
+
       if (!status) {
         message += `<b>${serverName}</b>\n`;
         message += '   Status: No data yet\n\n';
@@ -196,7 +196,7 @@ export class TelegramBotService {
       const transferStatus = status.canTransferTo ? '✅ Open' : '🔒 Locked';
       const transferFromStatus = status.canTransferFrom ? '✅ Open' : '🔒 Locked';
       const charCreationStatus = status.canCreateCharacter ? '✅ Open' : '🔒 Locked';
-      
+
       message += `<b>${serverName}</b>\n`;
       message += `   Status: ${status.status}\n`;
       message += `   Region: ${status.region}\n`;

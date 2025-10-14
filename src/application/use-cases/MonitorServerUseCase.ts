@@ -3,17 +3,22 @@
  * Core business logic for monitoring server status
  */
 
-import type {
-  IServerScraper,
-  INotificationService,
-  IStateRepository,
-  IHistoryRepository,
-  IConfigService
-} from '../../domain/interfaces';
-import type { ServerStatus, MonitorState, ServerMonitorState, NotificationPayload } from '../../domain/types';
-import { NotificationType, ServerState } from '../../domain/types';
-import type { DetectedEvent } from '../../domain/events';
 import { EventEvaluator } from '../../domain/EventEvaluator';
+import type { DetectedEvent } from '../../domain/events';
+import type {
+  IConfigService,
+  IHistoryRepository,
+  INotificationService,
+  IServerScraper,
+  IStateRepository,
+} from '../../domain/interfaces';
+import type {
+  MonitorState,
+  NotificationPayload,
+  ServerMonitorState,
+  ServerStatus,
+} from '../../domain/types';
+import { NotificationType, ServerState } from '../../domain/types';
 
 export class MonitorServerUseCase {
   private readonly eventEvaluator: EventEvaluator;
@@ -88,13 +93,13 @@ export class MonitorServerUseCase {
   ): Promise<void> {
     for (const event of events) {
       const notificationType = this.mapEventToNotificationType(event);
-      
+
       const payload: NotificationPayload = {
         type: notificationType,
         serverName: event.serverName,
         message: event.message,
         data: currentStatus,
-        timestamp: event.timestamp
+        timestamp: event.timestamp,
       };
 
       const sent = await this.notificationService.send(payload);
@@ -109,18 +114,18 @@ export class MonitorServerUseCase {
     // Map event types to notification types
     switch (event.trigger.type) {
       case 'transfer_to_change':
-        return event.currentValue 
-          ? NotificationType.TRANSFER_AVAILABLE 
+        return event.currentValue
+          ? NotificationType.TRANSFER_AVAILABLE
           : NotificationType.TRANSFER_LOCKED;
-      
+
       case 'server_status_change':
         return event.currentValue === ServerState.ONLINE
           ? NotificationType.SERVER_ONLINE
           : NotificationType.SERVER_OFFLINE;
-      
+
       case 'queue_change':
         return NotificationType.QUEUE_THRESHOLD;
-      
+
       default:
         return NotificationType.MONITORING_STARTED;
     }
@@ -135,7 +140,7 @@ export class MonitorServerUseCase {
     console.log(`   Queue: ${status.queue.toLocaleString()}`);
     console.log(`   Wait Time: ${status.waitTime}`);
     console.log(`   Can Transfer: ${status.canTransferTo ? 'YES ✅' : 'NO 🔒'}`);
-    
+
     if (status.isFreshStart) {
       console.log(`   🆕 Fresh Start World`);
     }
@@ -159,8 +164,8 @@ export class MonitorServerUseCase {
         transferAvailabilityPercentage: 0,
         lastOnline: new Date(),
         lastOffline: null,
-        statusHistory: []
-      }
+        statusHistory: [],
+      },
     };
   }
 

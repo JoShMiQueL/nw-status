@@ -22,7 +22,7 @@ export enum ServerState {
   ONLINE = 'Online',
   OFFLINE = 'Offline',
   MAINTENANCE = 'Maintenance',
-  UNKNOWN = 'Unknown'
+  UNKNOWN = 'Unknown',
 }
 
 export enum PopulationLevel {
@@ -30,7 +30,7 @@ export enum PopulationLevel {
   MEDIUM = 'Medium',
   HIGH = 'High',
   FULL = 'Full',
-  UNKNOWN = '???'
+  UNKNOWN = '???',
 }
 
 export interface ServerStatistics {
@@ -89,5 +89,5 @@ export enum NotificationType {
   SERVER_OFFLINE = 'server_offline',
   QUEUE_THRESHOLD = 'queue_threshold',
   MONITORING_STARTED = 'monitoring_started',
-  ERROR = 'error'
+  ERROR = 'error',
 }
