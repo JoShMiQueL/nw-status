@@ -73,7 +73,12 @@ class ServerMonitorApp {
   async start(): Promise<void> {
     console.log('🚀 New World Server Status Monitor');
     console.log('===================================');
-    console.log(`📡 Monitoring servers: ${this.config.getServers().join(', ')}`);
+    const servers = this.config.getServers();
+    console.log(`📡 Monitoring ${servers.length} server(s):`);
+    servers.forEach(server => {
+      const triggerCount = server.events.triggers.filter(t => t.enabled).length;
+      console.log(`   - ${server.name} (${triggerCount} active triggers)`);
+    });
     console.log(`⏱️  Check interval: ${this.config.getCheckInterval() / 1000}s`);
     console.log('===================================\n');
 
@@ -85,7 +90,7 @@ class ServerMonitorApp {
     }
 
     // Update server count
-    this.state.globalStats.totalServersMonitored = this.config.getServers().length;
+    this.state.globalStats.totalServersMonitored = servers.length;
 
     // Check notification services
     if (!this.notificationService.isConfigured()) {
@@ -109,11 +114,11 @@ class ServerMonitorApp {
   private async checkAllServers(): Promise<void> {
     const servers = this.config.getServers();
     
-    for (const serverName of servers) {
+    for (const server of servers) {
       try {
-        await this.monitorUseCase.execute(serverName, this.state);
+        await this.monitorUseCase.execute(server.name, this.state);
       } catch (error) {
-        console.error(`❌ Error monitoring ${serverName}:`, error);
+        console.error(`❌ Error monitoring ${server.name}:`, error);
       }
     }
 

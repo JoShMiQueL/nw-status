@@ -1,0 +1,63 @@
+{
+  "$schema": "./config.schema.json",
+  "checkInterval": 300000,
+  "features": {
+    "statistics": true,
+    "history": true
+  },
+  "storage": {
+    "stateFile": "data/state.json",
+    "historyFile": "data/history.json"
+  },
+  "servers": [
+    {
+      "name": "Nysa",
+      "enabled": true,
+      "description": "Main server - monitor transfers and queue",
+      "events": {
+        "triggers": [
+          {
+            "type": "transfer_to_change",
+            "enabled": true,
+            "description": "Notify when transfers open/close"
+          },
+          {
+            "type": "server_status_change",
+            "enabled": true,
+            "description": "Notify when server goes online/offline"
+          },
+          {
+            "type": "queue_change",
+            "enabled": true,
+            "options": {
+              "threshold": 300,
+              "direction": "both"
+            },
+            "description": "Notify when queue crosses 300"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Valhalla",
+      "enabled": true,
+      "description": "Secondary server - only transfers",
+      "events": {
+        "triggers": [
+          {
+            "type": "transfer_to_change",
+            "enabled": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "El Dorado",
+      "enabled": false,
+      "description": "Disabled server - not monitored",
+      "events": {
+        "triggers": []
+      }
+    }
+  ]
+}

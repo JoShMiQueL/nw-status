@@ -3,6 +3,7 @@
  */
 
 import type { ServerStatus, MonitorState, NotificationPayload, ServerStatistics } from './types';
+import type { EventConfiguration } from './events';
 
 /**
  * Interface for scraping server status from external sources
@@ -41,11 +42,21 @@ export interface IHistoryRepository {
 }
 
 /**
+ * Server configuration with individual events
+ */
+export interface ServerConfiguration {
+  name: string;
+  enabled: boolean;
+  events: EventConfiguration;
+}
+
+/**
  * Interface for configuration management
  */
 export interface IConfigService {
   get<T>(key: string): T;
-  getServers(): string[];
+  getServers(): ServerConfiguration[];
   getCheckInterval(): number;
   isFeatureEnabled(feature: string): boolean;
+  getEventConfiguration(serverName: string): EventConfiguration;
 }

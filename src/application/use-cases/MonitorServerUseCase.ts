@@ -12,15 +12,21 @@ import type {
 } from '../../domain/interfaces';
 import type { ServerStatus, MonitorState, ServerMonitorState, NotificationPayload } from '../../domain/types';
 import { NotificationType, ServerState } from '../../domain/types';
+import type { DetectedEvent } from '../../domain/events';
+import { EventEvaluator } from '../../domain/EventEvaluator';
 
 export class MonitorServerUseCase {
+  private readonly eventEvaluator: EventEvaluator;
+
   constructor(
     private readonly scraper: IServerScraper,
     private readonly notificationService: INotificationService,
     private readonly stateRepository: IStateRepository,
     private readonly historyRepository: IHistoryRepository,
     private readonly config: IConfigService
-  ) {}
+  ) {
+    this.eventEvaluator = new EventEvaluator();
+  }
 
   async execute(serverName: string, state: MonitorState): Promise<void> {
     console.log(`🔍 Checking ${serverName}...`);
@@ -47,8 +53,16 @@ export class MonitorServerUseCase {
       state.servers.set(serverName, serverState);
     }
 
-    // Check for changes and send notifications
-    await this.checkAndNotify(status, serverState);
+    // Evaluate events using configured triggers for this specific server
+    const eventConfig = this.config.getEventConfiguration(serverName);
+    const detectedEvents = this.eventEvaluator.evaluate(
+      eventConfig.triggers,
+      status,
+      serverState.lastStatus
+    );
+
+    // Send notifications for detected events
+    await this.notifyDetectedEvents(detectedEvents, status, state);
 
     // Update state
     serverState.lastStatus = status;
@@ -67,79 +81,48 @@ export class MonitorServerUseCase {
     await this.stateRepository.save(state);
   }
 
-  private async checkAndNotify(status: ServerStatus, serverState: ServerMonitorState): Promise<void> {
-    const lastStatus = serverState.lastStatus;
-    const lastTransferStatus = serverState.lastTransferStatus;
+  private async notifyDetectedEvents(
+    events: DetectedEvent[],
+    currentStatus: ServerStatus,
+    state: MonitorState
+  ): Promise<void> {
+    for (const event of events) {
+      const notificationType = this.mapEventToNotificationType(event);
+      
+      const payload: NotificationPayload = {
+        type: notificationType,
+        serverName: event.serverName,
+        message: event.message,
+        data: currentStatus,
+        timestamp: event.timestamp
+      };
 
-    // First check
-    if (lastTransferStatus === null) {
-      await this.sendNotification({
-        type: NotificationType.MONITORING_STARTED,
-        serverName: status.name,
-        message: 'Monitoring started',
-        data: status,
-        timestamp: new Date()
-      });
-      return;
-    }
-
-    // Transfer status changed
-    if (lastTransferStatus !== status.canTransferTo) {
-      const type = status.canTransferTo
-        ? NotificationType.TRANSFER_AVAILABLE
-        : NotificationType.TRANSFER_LOCKED;
-
-      await this.sendNotification({
-        type,
-        serverName: status.name,
-        message: status.canTransferTo
-          ? 'Server is now available for transfer'
-          : 'Server is now locked for transfer',
-        data: status,
-        timestamp: new Date()
-      });
-    }
-
-    // Server status changed
-    if (lastStatus && lastStatus.status !== status.status) {
-      if (status.status === ServerState.ONLINE && lastStatus.status !== ServerState.ONLINE) {
-        await this.sendNotification({
-          type: NotificationType.SERVER_ONLINE,
-          serverName: status.name,
-          message: 'Server is now online',
-          data: status,
-          timestamp: new Date()
-        });
-      } else if (status.status === ServerState.OFFLINE) {
-        await this.sendNotification({
-          type: NotificationType.SERVER_OFFLINE,
-          serverName: status.name,
-          message: 'Server is offline',
-          data: status,
-          timestamp: new Date()
-        });
-      }
-    }
-
-    // Queue threshold alert
-    if (this.config.isFeatureEnabled('queue_alerts')) {
-      const threshold = this.config.get<number>('QUEUE_THRESHOLD');
-      if (status.queue >= threshold && (!lastStatus || lastStatus.queue < threshold)) {
-        await this.sendNotification({
-          type: NotificationType.QUEUE_THRESHOLD,
-          serverName: status.name,
-          message: `Queue exceeded threshold: ${status.queue}`,
-          data: status,
-          timestamp: new Date()
-        });
+      const sent = await this.notificationService.send(payload);
+      if (sent) {
+        state.globalStats.totalNotificationsSent++;
+        console.log(`📧 Notification sent: ${event.message}`);
       }
     }
   }
 
-  private async sendNotification(payload: NotificationPayload): Promise<void> {
-    const sent = await this.notificationService.send(payload);
-    if (sent) {
-      // Increment notification counter (would need to pass state here)
+  private mapEventToNotificationType(event: DetectedEvent): NotificationType {
+    // Map event types to notification types
+    switch (event.trigger.type) {
+      case 'transfer_to_change':
+        return event.currentValue 
+          ? NotificationType.TRANSFER_AVAILABLE 
+          : NotificationType.TRANSFER_LOCKED;
+      
+      case 'server_status_change':
+        return event.currentValue === ServerState.ONLINE
+          ? NotificationType.SERVER_ONLINE
+          : NotificationType.SERVER_OFFLINE;
+      
+      case 'queue_change':
+        return NotificationType.QUEUE_THRESHOLD;
+      
+      default:
+        return NotificationType.MONITORING_STARTED;
     }
   }
 
