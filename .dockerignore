@@ -1,0 +1,61 @@
+# Dependencies
+node_modules/
+bun.lockb
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.docker
+
+# Configuration
+config.json
+!config.example.json
+
+# Data
+data/
+*.json.bak
+
+# Git
+.git/
+.gitignore
+.github/
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+coverage/
+.nyc_output/
+
+# Build
+dist/
+build/
+
+# Scripts
+scripts/
+
+# Docker
+docker-compose.yml
+Dockerfile
+.dockerignore

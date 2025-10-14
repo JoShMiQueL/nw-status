@@ -12,20 +12,61 @@ A professional server monitoring system for New World with multi-server support,
 - 💾 **Persistent state** - Survives restarts without duplicate notifications
 
 ### Advanced Features
-- 🎯 **Configurable event system** - Choose exactly which events trigger notifications
-- 📏 **Threshold-based alerts** - Set custom thresholds for queue and population changes
-- 🎛️ **Per-server event filtering** - Monitor different events for different servers
 - 📈 **Statistics tracking** - Historical data with uptime, queue analytics
 - 📜 **History storage** - Keep track of server status over time
 - 🏗️ **Clean architecture** - Layered design with SOLID principles
 
-## Prerequisites
+## Installation
 
-- [Bun](https://bun.sh/) installed on your system
-- A Telegram bot token (get from [@BotFather](https://t.me/BotFather))
+Choose your preferred installation method:
+
+### 🪟 Windows Executable (Easiest)
+
+Download the latest `nw-monitor-windows-x64.zip` from [Releases](https://github.com/your-username/nw-status/releases):
+
+1. Extract the ZIP file
+2. Copy `.env.example` to `.env` and configure
+3. Copy `config.example.json` to `config.json` and configure
+4. Run `nw-monitor.exe`
+
+**No dependencies required!** See [WINDOWS.md](WINDOWS.md) for detailed guide.
+
+### 🐳 Docker (Recommended for Linux/Mac)
+
+```bash
+# Using docker-compose
+docker-compose up -d
+
+# Or using docker CLI (Docker Hub)
+docker run -d \
+  --name nw-monitor \
+  -e TELEGRAM_BOT_TOKEN="your_token" \
+  -e TELEGRAM_CHAT_IDS="your_chat_id" \
+  -v $(pwd)/config.json:/app/config.json:ro \
+  -v $(pwd)/data:/app/data \
+  joshmiquel/nw-status:latest
+
+# Or using GitHub Container Registry
+docker run -d \
+  --name nw-monitor \
+  -e TELEGRAM_BOT_TOKEN="your_token" \
+  -e TELEGRAM_CHAT_IDS="your_chat_id" \
+  -v $(pwd)/config.json:/app/config.json:ro \
+  -v $(pwd)/data:/app/data \
+  ghcr.io/joshmiquel/nw-status:latest
+```
+
+See [DOCKER.md](DOCKER.md) for detailed guide.  
+See [DOCKER_HUB_SETUP.md](DOCKER_HUB_SETUP.md) to deploy to Docker Hub.
+
+### 📦 From Source
+
+**Prerequisites:**
+- [Bun](https://bun.sh) runtime installed
+- Telegram bot token (get from [@BotFather](https://t.me/botfather))
 - Your Telegram chat ID (get from [@userinfobot](https://t.me/userinfobot))
 
-## Setup
+**Setup:**
 
 ### 1. Install Dependencies
 
@@ -496,9 +537,41 @@ src/
 - Check that the `data/` directory can be created
 - Verify file permissions for state and history files
 
+## 🔄 CI/CD & Automation
+
+This project includes GitHub Actions workflows for:
+
+- **CI/CD Pipeline** - Automated testing and validation
+- **Docker Build** - Container image building and publishing
+- **Release Automation** - Automatic changelog and release creation
+- **Security Analysis** - CodeQL security scanning
+- **Dependency Updates** - Automated dependency management via Dependabot
+
+See [`.github/WORKFLOWS.md`](.github/WORKFLOWS.md) for detailed documentation.
+
+### Quick Start with Docker
+
+```bash
+# Pull from GitHub Container Registry
+docker pull ghcr.io/your-username/nw-status:latest
+
+# Run with environment variables
+docker run -d \
+  --name nw-monitor \
+  -v $(pwd)/config.json:/app/config.json:ro \
+  -v $(pwd)/.env:/app/.env:ro \
+  -v $(pwd)/data:/app/data \
+  ghcr.io/your-username/nw-status:latest
+```
+
 ## Contributing
 
 Contributions are welcome! Please follow the existing architecture patterns.
+
+The CI pipeline will automatically:
+- Run type checks and linting
+- Validate configuration files
+- Run tests (when available)
 
 ## License
 

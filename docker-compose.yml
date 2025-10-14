@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  nw-monitor:
+    # Choose one:
+    # Option 1: Docker Hub
+    image: ${DOCKERHUB_USERNAME:-joshmiquel}/nw-status:latest
+    # Option 2: GitHub Container Registry
+    # image: ghcr.io/${GITHUB_REPOSITORY:-joshmiquel/nw-status}:latest
+    
+    container_name: nw-server-monitor
+    restart: unless-stopped
+    
+    # Environment variables - configure your bot here
+    environment:
+      # Telegram Bot (Required)
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_IDS=${TELEGRAM_CHAT_IDS}
+      
+      # Webhook (Optional)
+      - WEBHOOK_URL=${WEBHOOK_URL:-}
+      
+      # Check interval (Optional, default: 300000ms = 5 minutes)
+      - CHECK_INTERVAL=${CHECK_INTERVAL:-300000}
+      
+      # Storage paths (Optional)
+      - STATE_FILE=${STATE_FILE:-data/state.json}
+      - HISTORY_FILE=${HISTORY_FILE:-data/history.json}
+    
+    # Volumes
+    volumes:
+      # Config file (Required)
+      - ./config.json:/app/config.json:ro
+      
+      # Data persistence
+      - ./data:/app/data
+      
+      # Optional: Custom .env file
+      # - ./.env:/app/.env:ro
+    
+    # Security
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SYS_ADMIN  # Required for Chromium
+    
+    # Resource limits (Optional)
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "bun"]
+      interval: 5m
+      timeout: 10s
+      retries: 3
+      start_period: 30s
