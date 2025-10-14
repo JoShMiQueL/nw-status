@@ -25,11 +25,11 @@ This project uses a two-stage CI/CD workflow based on `release-please-action`.
 
 ---
 
-### Stage 2: Build and Publish (Automatic after merge)
+### Stage 2: Build and Publish (Manual trigger)
 
 **Workflow**: `.github/workflows/publish-release.yml`
 
-**Trigger**: Tag creation `nw-status-v*` (happens automatically when release-please PR is merged)
+**Trigger**: Release published (when you manually publish the draft release created by release-please)
 
 **What it does**:
 
@@ -67,27 +67,32 @@ This project uses a two-stage CI/CD workflow based on `release-please-action`.
 
 3. **Team reviews and merges the PR**:
    - Tag `nw-status-v0.2.0` is created automatically
-   - Release v0.2.0 is created automatically by release-please (with CHANGELOG)
+   - **Draft Release** v0.2.0 is created automatically by release-please (with CHANGELOG)
 
-4. **Publish workflow triggers automatically**:
+4. **Team reviews and publishes the Draft Release**:
+   - Go to GitHub Releases
+   - Review the draft release
+   - Click "Publish release"
+
+5. **Publish workflow triggers automatically**:
    - ✅ Compiles Windows executable
    - ✅ Builds and publishes Docker images
-   - ✅ Attaches Windows ZIP to the existing release
+   - ✅ Attaches Windows ZIP to the release
 
-5. **Release is ready**:
+6. **Release is complete**:
    - Release v0.2.0 is now public on GitHub with all artifacts
 
 ---
 
 ## Additional Workflows
 
-### Manual Pre-release
+### Manual Release
 
-**Workflow**: `.github/workflows/manual-prerelease.yml`
+**Workflow**: `.github/workflows/manual-release.yml`
 
 **Trigger**: Manual (workflow_dispatch)
 
-Allows creating pre-releases manually (e.g., `v1.0.0-beta.1`) without going through the normal release-please flow.
+Allows creating releases manually (stable or pre-release) without going through the normal release-please flow. Useful for hotfixes or emergency releases.
 
 ### CI Tests
 
@@ -110,6 +115,7 @@ Code security analysis.
 ## Important Notes
 
 - **Conventional Commits**: It's crucial to follow the convention so release-please calculates versions correctly
-- **Automatic Releases**: release-please creates the release automatically when the version PR is merged
+- **Draft Releases**: release-please creates draft releases automatically - you must manually publish them to trigger builds
+- **Manual Publish**: Publishing the draft release triggers the build workflow (Windows exe + Docker images)
 - **Docker Hub**: Requires configuring secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`
 - **Tags**: Tags follow the format `nw-status-vX.Y.Z` (includes package name)

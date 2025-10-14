@@ -2,7 +2,7 @@
   "packages": {
     ".": {
       "release-type": "node",
-      "package-name": "nw-status",
+      "package-name": "nwstatus",
       "draft": true,
       "include-v-in-tag": true,
       "changelog-sections": [

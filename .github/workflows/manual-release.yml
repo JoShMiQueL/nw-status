@@ -1,19 +1,24 @@
-name: Manual Pre-release
+name: Manual Release
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Pre-release version (e.g., 1.0.0-beta.1)'
+        description: 'Release version (e.g., 1.0.0 or 1.0.0-beta.1)'
         required: true
         type: string
+      prerelease:
+        description: 'Is this a pre-release?'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
 
 jobs:
-  create-prerelease:
-    name: Create Pre-release
+  create-release:
+    name: Create Release
     runs-on: ubuntu-latest
     
     steps:
@@ -23,12 +28,12 @@ jobs:
       - name: Validate version format
         run: |
           VERSION="${{ inputs.version }}"
-          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+-(alpha|beta|rc)\.[0-9]+$'; then
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z]+\.[0-9]+)?$'; then
             echo "❌ Invalid version format"
-            echo "Expected: X.Y.Z-TYPE.N (e.g., 1.0.0-beta.1)"
+            echo "Expected: X.Y.Z or X.Y.Z-TYPE.N (e.g., 1.0.0 or 1.0.0-beta.1)"
             exit 1
           fi
-          echo "✅ Valid pre-release version: $VERSION"
+          echo "✅ Valid version: $VERSION"
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -45,19 +50,19 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add package.json
           git commit -m "chore: release v${{ inputs.version }}"
-          git tag -a "v${{ inputs.version }}" -m "Pre-release v${{ inputs.version }}"
-          git push origin "v${{ inputs.version }}"
+          git tag -a "nwstatus-v${{ inputs.version }}" -m "Release v${{ inputs.version }}"
+          git push origin "nwstatus-v${{ inputs.version }}"
 
   build-windows:
     name: Build Windows Executable
     runs-on: windows-latest
-    needs: create-prerelease
+    needs: create-release
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
         with:
-          ref: v${{ inputs.version }}
+          ref: nwstatus-v${{ inputs.version }}
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -76,26 +81,25 @@ jobs:
       - name: Create release package
         run: |
           cd dist
-          Compress-Archive -Path * -DestinationPath ../nw-monitor-${{ inputs.version }}-windows-x64.zip
+          Compress-Archive -Path * -DestinationPath ../nw-monitor-windows-x64-${{ inputs.version }}.zip
         shell: pwsh
 
-      - name: Create GitHub Pre-release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ inputs.version }}
-          name: Pre-release v${{ inputs.version }}
+          tag_name: nwstatus-v${{ inputs.version }}
+          name: NW Status v${{ inputs.version }}
           body: |
-            ## 🚧 Pre-release v${{ inputs.version }}
+            ## 📦 Release v${{ inputs.version }}
             
-            This is a pre-release version for testing purposes.
+            Manual release created via GitHub Actions.
             
             ### 📥 Download
             - Windows executable available below
             
             ### ⚠️ Note
-            - This is NOT a stable release
-            - Docker images are NOT published for pre-releases
-            - Use at your own risk for testing only
-          files: nw-monitor-${{ inputs.version }}-windows-x64.zip
-          prerelease: true
-          draft: false
+            ${{ inputs.prerelease && '- This is a pre-release version for testing' || '- This is a stable release' }}
+            - Docker images are NOT published for manual releases
+          files: nw-monitor-windows-x64-${{ inputs.version }}.zip
+          prerelease: ${{ inputs.prerelease }}
+          draft: true

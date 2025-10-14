@@ -13,6 +13,7 @@ jobs:
   release-pr:
     name: Create/Update Release PR
     runs-on: ubuntu-latest
+    if: ${{ !startsWith(github.event.head_commit.message, 'ci:') && !startsWith(github.event.head_commit.message, 'docs:') }}
     
     steps:
       - name: Run Release Please

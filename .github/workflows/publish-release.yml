@@ -1,9 +1,8 @@
-name: 2. Build and Publish Release
+name: Build and Publish Release
 
 on:
-  push:
-    tags:
-      - 'nw-status-v*'
+  release:
+    types: [published]
 
 permissions:
   contents: write
@@ -18,10 +17,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Extract version from tag
+      - name: Extract version from release
         id: version
         run: |
-          $VERSION = "${{ github.ref_name }}" -replace '^nw-status-v', ''
+          $VERSION = "${{ github.event.release.tag_name }}" -replace '^nw-status-v', ''
           echo "VERSION=$VERSION" >> $env:GITHUB_ENV
           echo "version=$VERSION" >> $env:GITHUB_OUTPUT
         shell: pwsh
@@ -61,10 +60,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Extract version from tag
+      - name: Extract version from release
         id: version
         run: |
-          VERSION="${GITHUB_REF_NAME#nw-status-v}"
+          VERSION="${{ github.event.release.tag_name }}"
+          VERSION="${VERSION#nw-status-v}"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
@@ -124,10 +124,11 @@ jobs:
     needs: [build-windows, build-docker]
     
     steps:
-      - name: Extract version from tag
+      - name: Extract version from release
         id: version
         run: |
-          VERSION="${GITHUB_REF_NAME#nw-status-v}"
+          VERSION="${{ github.event.release.tag_name }}"
+          VERSION="${VERSION#nw-status-v}"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Download Windows artifact
@@ -138,6 +139,7 @@ jobs:
       - name: Attach artifacts to existing release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ github.event.release.tag_name }}
+          name: NW Status v${{ env.VERSION }}
           files: |
             nw-monitor-windows-x64-${{ env.VERSION }}.zip
