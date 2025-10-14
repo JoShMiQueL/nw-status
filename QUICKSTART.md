@@ -107,7 +107,17 @@ bun start
 The program will:
 - Check the server every 5 minutes (or your configured interval)
 - Send notifications based on your configured events
+- Respond to Telegram commands (`/status`, `/help`)
 - Save state to avoid duplicate notifications on restart
+
+### Using Telegram Commands
+
+While the monitor is running, you can send commands to your bot:
+
+- **`/status`** - Get current status of all servers
+- **`/help`** - Show available commands
+
+Simply open your bot in Telegram and type the command!
 
 ## 5. Stop Monitoring
 

@@ -115,6 +115,39 @@ Or with auto-reload during development:
 bun dev
 ```
 
+### Telegram Bot Commands
+
+Once the monitor is running, you can interact with it via Telegram:
+
+| Command | Description |
+|---------|-------------|
+| `/status` | Get current status of all monitored servers |
+| `/help` | Show available commands |
+
+**Example:**
+```
+/status
+```
+
+**Response:**
+```
+📊 Current Server Status
+
+Nysa
+   Status: Online
+   Region: EU Central
+   Population: High
+   Queue: 245
+   Wait Time: 15 min
+   Transfer TO: ✅ Open
+   Transfer FROM: 🔒 Locked
+   Char Creation: ✅ Open
+   Last Update: 10/14/2025, 4:45:23 PM
+
+🕐 Global last check: 10/14/2025, 4:45:20 PM
+📈 Total checks: 42
+```
+
 ### Configuration Files
 
 #### `config.json` - Application Configuration
@@ -352,17 +385,22 @@ Edit your `config.json` file with these examples:
 2. **Event Evaluation**: Compares current status with previous state
 3. **Trigger Matching**: Checks configured triggers against detected changes
 4. **Notifications**: Sends alerts via Telegram and/or webhooks for matched events
-5. **Persistence**: Saves state and history to JSON files
-6. **Statistics**: Calculates uptime, queue averages, and more
+5. **Bot Commands**: Responds to Telegram commands like `/status` for on-demand info
+6. **Persistence**: Saves state and history to JSON files
+7. **Statistics**: Calculates uptime, queue averages, and more
 
 ## Output Example
 
 ```
 🚀 New World Server Status Monitor
 ===================================
-📡 Monitoring servers: Nysa, Valhalla, El Dorado
+📡 Monitoring 2 server(s):
+   - Nysa (3 active triggers)
+   - Valhalla (1 active triggers)
 ⏱️  Check interval: 300s
 ===================================
+🤖 Telegram bot commands enabled
+   Available commands: /status, /help
 
 📂 Loaded previous state
 🔍 Checking Nysa...

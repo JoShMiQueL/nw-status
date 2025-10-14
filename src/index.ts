@@ -9,6 +9,7 @@ import { NWDBScraper } from './infrastructure/scraper/NWDBScraper';
 import { TelegramNotificationService } from './infrastructure/notifications/TelegramNotificationService';
 import { WebhookNotificationService } from './infrastructure/notifications/WebhookNotificationService';
 import { CompositeNotificationService } from './infrastructure/notifications/CompositeNotificationService';
+import { TelegramBotService } from './infrastructure/bot/TelegramBotService';
 import { JsonStateRepository } from './infrastructure/storage/JsonStateRepository';
 import { JsonHistoryRepository } from './infrastructure/storage/JsonHistoryRepository';
 import { MonitorServerUseCase } from './application/use-cases/MonitorServerUseCase';
@@ -19,6 +20,7 @@ class ServerMonitorApp {
   private config: ConfigService;
   private scraper: NWDBScraper;
   private notificationService: CompositeNotificationService;
+  private botService: TelegramBotService;
   private stateRepository: JsonStateRepository;
   private historyRepository: JsonHistoryRepository;
   private monitorUseCase: MonitorServerUseCase;
@@ -41,6 +43,13 @@ class ServerMonitorApp {
     );
     
     this.notificationService = new CompositeNotificationService([telegram, webhook]);
+    
+    // Setup bot service
+    this.botService = new TelegramBotService(
+      this.config.get('TELEGRAM_BOT_TOKEN'),
+      this.config.get('TELEGRAM_CHAT_ID'),
+      () => this.state
+    );
     
     // Setup repositories
     this.stateRepository = new JsonStateRepository(this.config.get('STATE_FILE'));
@@ -101,6 +110,9 @@ class ServerMonitorApp {
     // Setup graceful shutdown
     this.setupShutdownHandlers();
 
+    // Start bot service
+    this.botService.start();
+
     // Initial check
     await this.checkAllServers();
 
@@ -144,6 +156,7 @@ class ServerMonitorApp {
         clearInterval(this.intervalId);
       }
       
+      this.botService.stop();
       await this.scraper.close();
       console.log('💾 State saved');
       process.exit(0);
