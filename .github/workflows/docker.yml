@@ -2,7 +2,7 @@ name: Docker Build & Push
 
 on:
   release:
-    types: [published]
+    types: [published, created]
   workflow_dispatch:
 
 env:
