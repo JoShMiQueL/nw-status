@@ -176,8 +176,18 @@ Only credentials are stored here:
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `TELEGRAM_BOT_TOKEN` | Yes | Your Telegram bot token from BotFather |
-| `TELEGRAM_CHAT_ID` | Yes | Your Telegram chat ID |
-| `WEBHOOK_URL` | No | Custom webhook endpoint for notifications |
+| `TELEGRAM_CHAT_IDS` | No | Whitelist of allowed chat IDs (comma-separated). If empty, bot is public. |
+| `WEBHOOK_URL` | No | Optional webhook URL for custom integrations |
+
+**TELEGRAM_CHAT_IDS Examples:**
+- Single user: `TELEGRAM_CHAT_IDS=123456789`
+- Multiple users: `TELEGRAM_CHAT_IDS=123456789,987654321,555555555`
+- Public mode: `TELEGRAM_CHAT_IDS=` (empty or not set)
+
+**Note:** Automatic notifications are sent to the first chat ID. All listed IDs can use bot commands.
+
+| Variable | Required | Description |
+|----------|----------|-------------|
 | `STATE_FILE` | No | Override state file path from config.json |
 | `HISTORY_FILE` | No | Override history file path from config.json |
 

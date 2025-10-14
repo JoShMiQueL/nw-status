@@ -26,12 +26,21 @@ export class TelegramBotService {
   private lastUpdateId: number = 0;
   private pollingInterval: Timer | null = null;
   private isPolling: boolean = false;
+  private allowedChatIds: Set<string>;
 
   constructor(
     private readonly botToken: string | undefined,
-    private readonly allowedChatId: string | undefined,
+    allowedChatIds: string | undefined,
     private readonly getState: () => MonitorState
-  ) {}
+  ) {
+    // Parse comma-separated chat IDs into a Set
+    this.allowedChatIds = new Set(
+      allowedChatIds
+        ?.split(',')
+        .map(id => id.trim())
+        .filter(id => id.length > 0) || []
+    );
+  }
 
   /**
    * Start polling for bot commands
@@ -42,7 +51,13 @@ export class TelegramBotService {
       return;
     }
 
-    console.log('🤖 Telegram bot commands enabled');
+    if (this.allowedChatIds.size === 0) {
+      console.log('🤖 Telegram bot commands enabled (PUBLIC MODE)');
+      console.log('   ⚠️  No whitelist configured - anyone can use commands');
+    } else {
+      console.log('🤖 Telegram bot commands enabled (WHITELIST MODE)');
+      console.log(`   Allowed chat IDs: ${Array.from(this.allowedChatIds).join(', ')}`);
+    }
     console.log('   Available commands: /status, /help');
     
     this.isPolling = true;
@@ -64,7 +79,7 @@ export class TelegramBotService {
    * Check if bot is configured
    */
   isConfigured(): boolean {
-    return !!(this.botToken && this.allowedChatId);
+    return !!this.botToken;
   }
 
   /**
@@ -122,9 +137,15 @@ export class TelegramBotService {
     const message = update.message;
     if (!message || !message.text || !message.from) return;
 
-    // Check if message is from allowed chat
-    if (message.chat.id.toString() !== this.allowedChatId) {
-      console.log(`⚠️  Ignored command from unauthorized chat: ${message.chat.id}`);
+    const chatId = message.chat.id.toString();
+
+    // Check whitelist (if configured)
+    if (this.allowedChatIds.size > 0 && !this.allowedChatIds.has(chatId)) {
+      console.log(`⚠️  Ignored command from unauthorized chat: ${chatId}`);
+      await this.sendMessage(
+        message.chat.id,
+        '🔒 Access denied. This bot is restricted to authorized users only.'
+      );
       return;
     }
 
@@ -132,7 +153,7 @@ export class TelegramBotService {
     const command = (text.split(' ')[0] || '').toLowerCase();
     const userName = message.from.first_name;
 
-    console.log(`📨 Received command: ${command} from ${userName}`);
+    console.log(`📨 Received command: ${command} from ${userName} (chat: ${chatId})`);
 
     switch (command) {
       case '/status':

@@ -130,7 +130,7 @@ export class ConfigService implements IConfigService {
   private loadEnvConfig(): void {
     // Only load sensitive credentials from .env
     this.config.set('TELEGRAM_BOT_TOKEN', process.env.TELEGRAM_BOT_TOKEN);
-    this.config.set('TELEGRAM_CHAT_ID', process.env.TELEGRAM_CHAT_ID);
+    this.config.set('TELEGRAM_CHAT_IDS', process.env.TELEGRAM_CHAT_IDS);
     this.config.set('WEBHOOK_URL', process.env.WEBHOOK_URL);
 
     // Storage paths (with fallback to config.json)
