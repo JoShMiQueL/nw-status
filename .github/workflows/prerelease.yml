@@ -1,0 +1,108 @@
+name: Pre-Release Build
+
+on:
+  push:
+    tags:
+      - 'v*-alpha*'
+      - 'v*-beta*'
+      - 'v*-rc*'
+
+# This workflow handles pre-release builds from develop or feature branches
+# Only builds artifacts, does not create GitHub releases or push to Docker registries
+
+jobs:
+  check-branch:
+    name: Check if tag is NOT from main
+    runs-on: ubuntu-latest
+    outputs:
+      is_prerelease: ${{ steps.check.outputs.is_prerelease }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Check if tag is NOT on main branch
+        id: check
+        run: |
+          # Get the commit of the tag
+          TAG_COMMIT=$(git rev-list -n 1 $GITHUB_REF)
+          
+          # Check if this commit is NOT in main branch
+          if git branch -r --contains $TAG_COMMIT | grep -q 'origin/main'; then
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+            echo "⚠️ Tag is from main branch - skipping pre-release"
+            echo "Use the main release workflow instead"
+          else
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+            echo "✅ Tag is from non-main branch - proceeding with pre-release"
+          fi
+
+  build-windows-exe:
+    name: Build Windows .exe (Pre-release)
+    runs-on: windows-latest
+    needs: check-branch
+    if: needs.check-branch.outputs.is_prerelease == 'true'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.0
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build executable
+        run: bun build src/index.ts --compile --outfile dist/nw-monitor.exe
+          
+      - name: Copy config files
+        run: bun scripts/copy-build-files.ts
+
+      - name: Get version from tag
+        id: version
+        run: |
+          $VERSION = $env:GITHUB_REF -replace 'refs/tags/v', ''
+          echo "version=$VERSION" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          echo "Version: $VERSION"
+        shell: pwsh
+
+      - name: Create release package
+        run: |
+          cd dist
+          Compress-Archive -Path * -DestinationPath ../nw-monitor-${{ steps.version.outputs.version }}-windows-x64.zip
+        shell: pwsh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-exe-prerelease
+          path: nw-monitor-${{ steps.version.outputs.version }}-windows-x64.zip
+          retention-days: 30
+
+  summary:
+    name: Pre-release Summary
+    runs-on: ubuntu-latest
+    needs: [check-branch, build-windows-exe]
+    if: needs.check-branch.outputs.is_prerelease == 'true'
+    
+    steps:
+      - name: Summary
+        run: |
+          echo "## 🚧 Pre-release Build Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "This is a pre-release build from a non-main branch." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ℹ️ What was built:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Windows executable (available as artifact)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ⚠️ What was NOT built:" >> $GITHUB_STEP_SUMMARY
+          echo "- ❌ Docker images (only built for main releases)" >> $GITHUB_STEP_SUMMARY
+          echo "- ❌ GitHub Release (only created for main releases)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📥 Download:" >> $GITHUB_STEP_SUMMARY
+          echo "Download the Windows executable from the **Artifacts** section above." >> $GITHUB_STEP_SUMMARY

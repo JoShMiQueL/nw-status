@@ -5,10 +5,65 @@ on:
     tags:
       - 'v*'
 
+# Only run if tag is pushed from main branch
+# Pre-releases from other branches use prerelease.yml workflow
+
 jobs:
+  check-branch:
+    name: Check if tag is from main and is stable
+    runs-on: ubuntu-latest
+    outputs:
+      is_main: ${{ steps.check.outputs.is_main }}
+      is_stable: ${{ steps.check.outputs.is_stable }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Check if tag is on main branch and is stable release
+        id: check
+        run: |
+          # Get the commit of the tag
+          TAG_COMMIT=$(git rev-list -n 1 $GITHUB_REF)
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          
+          echo "Tag name: $TAG_NAME"
+          
+          # Check if tag has prerelease suffix (alpha, beta, rc)
+          if echo "$TAG_NAME" | grep -qE 'v[0-9]+\.[0-9]+\.[0-9]+-(alpha|beta|rc)'; then
+            IS_STABLE="false"
+            echo "⚠️ Tag contains pre-release suffix - this is a pre-release"
+          else
+            IS_STABLE="true"
+            echo "✅ Tag is a stable version (no pre-release suffix)"
+          fi
+          
+          # Check if this commit is in main branch
+          if git branch -r --contains $TAG_COMMIT | grep -q 'origin/main'; then
+            IS_MAIN="true"
+            echo "✅ Tag is from main branch"
+          else
+            IS_MAIN="false"
+            echo "⚠️ Tag is not from main branch"
+          fi
+          
+          echo "is_main=$IS_MAIN" >> $GITHUB_OUTPUT
+          echo "is_stable=$IS_STABLE" >> $GITHUB_OUTPUT
+          
+          # Only proceed with full release if from main AND stable
+          if [ "$IS_MAIN" = "true" ] && [ "$IS_STABLE" = "true" ]; then
+            echo "✅ Proceeding with full production release"
+          else
+            echo "⚠️ Skipping full release - this is a pre-release or from non-main branch"
+          fi
+
   generate-changelog:
     name: Generate Changelog
     runs-on: ubuntu-latest
+    needs: check-branch
+    if: needs.check-branch.outputs.is_main == 'true' && needs.check-branch.outputs.is_stable == 'true'
     outputs:
       changelog: ${{ steps.changelog.outputs.changelog }}
       version: ${{ steps.version.outputs.version }}
@@ -44,7 +99,8 @@ jobs:
   build-windows-exe:
     name: Build Windows .exe
     runs-on: windows-latest
-    needs: generate-changelog
+    needs: [check-branch, generate-changelog]
+    if: needs.check-branch.outputs.is_main == 'true' && needs.check-branch.outputs.is_stable == 'true'
     permissions:
       contents: write
     
@@ -81,7 +137,8 @@ jobs:
   build-docker:
     name: Build & Push Docker Images
     runs-on: ubuntu-latest
-    needs: generate-changelog
+    needs: [check-branch, generate-changelog]
+    if: needs.check-branch.outputs.is_main == 'true' && needs.check-branch.outputs.is_stable == 'true'
     permissions:
       contents: read
       packages: write
@@ -143,7 +200,8 @@ jobs:
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [generate-changelog, build-windows-exe, build-docker]
+    needs: [check-branch, generate-changelog, build-windows-exe, build-docker]
+    if: needs.check-branch.outputs.is_main == 'true' && needs.check-branch.outputs.is_stable == 'true'
     permissions:
       contents: write
     

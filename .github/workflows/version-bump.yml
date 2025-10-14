@@ -14,6 +14,11 @@ on:
           - major
           - prerelease
         default: 'auto'
+      prerelease_suffix:
+        description: 'Pre-release suffix (e.g., "alpha.1", "beta.2", "rc.1"). Leave empty for stable release.'
+        required: false
+        type: string
+        default: ''
 
 jobs:
   version-and-release:
@@ -39,6 +44,41 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Validate prerelease suffix
+        run: |
+          CURRENT_BRANCH="${{ github.ref_name }}"
+          PRERELEASE_SUFFIX="${{ inputs.prerelease_suffix }}"
+          
+          echo "Current branch: $CURRENT_BRANCH"
+          echo "Prerelease suffix: $PRERELEASE_SUFFIX"
+          
+          # If not on main, prerelease suffix is REQUIRED
+          if [ "$CURRENT_BRANCH" != "main" ]; then
+            if [ -z "$PRERELEASE_SUFFIX" ]; then
+              echo "❌ ERROR: Pre-release suffix is required when running from non-main branches"
+              echo "Please provide a suffix like: alpha.1, beta.1, rc.1"
+              echo "Current branch: $CURRENT_BRANCH"
+              exit 1
+            fi
+            
+            # Validate suffix format (must start with alpha, beta, or rc)
+            if ! echo "$PRERELEASE_SUFFIX" | grep -qE '^(alpha|beta|rc)\.[0-9]+$'; then
+              echo "❌ ERROR: Invalid pre-release suffix format"
+              echo "Expected format: alpha.N, beta.N, or rc.N (e.g., alpha.1, beta.2, rc.1)"
+              echo "Got: $PRERELEASE_SUFFIX"
+              exit 1
+            fi
+            
+            echo "✅ Valid pre-release suffix for branch $CURRENT_BRANCH"
+          else
+            # On main, suffix is optional (allows both stable and pre-releases from main)
+            if [ -n "$PRERELEASE_SUFFIX" ]; then
+              echo "⚠️ Creating pre-release from main branch with suffix: $PRERELEASE_SUFFIX"
+            else
+              echo "✅ Creating stable release from main branch"
+            fi
+          fi
 
       - name: Get current version
         id: current_version
@@ -101,9 +141,13 @@ jobs:
         run: |
           echo "Tag already exists, bumping version..."
           CURRENT_VERSION="${{ steps.current_version.outputs.version }}"
+          PRERELEASE_SUFFIX="${{ inputs.prerelease_suffix }}"
+          
+          # Remove any existing prerelease suffix from current version
+          BASE_VERSION=$(echo "$CURRENT_VERSION" | sed 's/-.*$//')
           
           # Parse version components
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
           
           # Bump based on type
           case "${{ steps.determine_bump.outputs.bump_type }}" in
@@ -122,7 +166,14 @@ jobs:
           esac
           
           NEW_VERSION="$MAJOR.$MINOR.$PATCH"
-          echo "Bumping from v$CURRENT_VERSION to v$NEW_VERSION"
+          
+          # Add prerelease suffix if provided
+          if [ -n "$PRERELEASE_SUFFIX" ]; then
+            NEW_VERSION="$NEW_VERSION-$PRERELEASE_SUFFIX"
+            echo "Bumping from v$CURRENT_VERSION to v$NEW_VERSION (pre-release)"
+          else
+            echo "Bumping from v$CURRENT_VERSION to v$NEW_VERSION"
+          fi
           
           # Update package.json
           bun pm pkg set version="$NEW_VERSION"
@@ -136,8 +187,23 @@ jobs:
         if: steps.check_tag.outputs.exists == 'false'
         run: |
           CURRENT_VERSION="${{ steps.current_version.outputs.version }}"
-          echo "Creating tag for existing version v$CURRENT_VERSION"
-          git tag -a "v$CURRENT_VERSION" -m "Release v$CURRENT_VERSION"
+          PRERELEASE_SUFFIX="${{ inputs.prerelease_suffix }}"
+          
+          # Add prerelease suffix if provided
+          if [ -n "$PRERELEASE_SUFFIX" ]; then
+            TAG_VERSION="$CURRENT_VERSION-$PRERELEASE_SUFFIX"
+            echo "Creating tag for version v$TAG_VERSION (pre-release)"
+            
+            # Update package.json with suffix
+            bun pm pkg set version="$TAG_VERSION"
+            git add package.json
+            git commit -m "chore: bump version to $TAG_VERSION"
+          else
+            TAG_VERSION="$CURRENT_VERSION"
+            echo "Creating tag for existing version v$TAG_VERSION"
+          fi
+          
+          git tag -a "v$TAG_VERSION" -m "Release v$TAG_VERSION"
 
       - name: Get final version
         id: final_version
