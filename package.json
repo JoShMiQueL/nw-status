@@ -1,6 +1,6 @@
 {
   "name": "nw-server-status-monitor",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Monitor New World server status with multi-server support, statistics, and notifications",
   "type": "module",
   "scripts": {
