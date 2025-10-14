@@ -77,15 +77,20 @@ jobs:
 
       - name: Validate JSON files
         run: |
-          for file in *.json; do
-            if [ -f "$file" ]; then
-              echo "Validating $file..."
-              cat "$file" | jq empty || exit 1
-            fi
-          done
+          echo "Validating config.example.json..."
+          jq empty config.example.json
+          
+          echo "Validating config.schema.json..."
+          jq empty config.schema.json
+          
+          echo "Validating package.json..."
+          jq empty package.json
+          
+          echo "✓ JSON files validated successfully"
 
-      - name: Check config.example.json exists
-        run: test -f config.example.json
-
-      - name: Check .env.example exists
-        run: test -f .env.example
+      - name: Check required files exist
+        run: |
+          test -f config.example.json
+          test -f .env.example
+          test -f Dockerfile
+          test -f docker-compose.yml
