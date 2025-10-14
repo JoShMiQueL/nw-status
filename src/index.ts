@@ -1,20 +1,20 @@
 #!/usr/bin/env bun
+
 /**
  * New World Server Status Monitor
  * Main application entry point
  */
 
+import { MonitorServerUseCase } from './application/use-cases/MonitorServerUseCase';
 import { ConfigService } from './config/ConfigService';
-import { NWDBScraper } from './infrastructure/scraper/NWDBScraper';
+import type { MonitorState } from './domain/types';
+import { TelegramBotService } from './infrastructure/bot/TelegramBotService';
+import { CompositeNotificationService } from './infrastructure/notifications/CompositeNotificationService';
 import { TelegramNotificationService } from './infrastructure/notifications/TelegramNotificationService';
 import { WebhookNotificationService } from './infrastructure/notifications/WebhookNotificationService';
-import { CompositeNotificationService } from './infrastructure/notifications/CompositeNotificationService';
-import { TelegramBotService } from './infrastructure/bot/TelegramBotService';
-import { JsonStateRepository } from './infrastructure/storage/JsonStateRepository';
+import { NWDBScraper } from './infrastructure/scraper/NWDBScraper';
 import { JsonHistoryRepository } from './infrastructure/storage/JsonHistoryRepository';
-import { MonitorServerUseCase } from './application/use-cases/MonitorServerUseCase';
-import { GetStatisticsUseCase } from './application/use-cases/GetStatisticsUseCase';
-import type { MonitorState } from './domain/types';
+import { JsonStateRepository } from './infrastructure/storage/JsonStateRepository';
 
 class ServerMonitorApp {
   private config: ConfigService;
@@ -24,40 +24,37 @@ class ServerMonitorApp {
   private stateRepository: JsonStateRepository;
   private historyRepository: JsonHistoryRepository;
   private monitorUseCase: MonitorServerUseCase;
-  private statsUseCase: GetStatisticsUseCase;
   private state: MonitorState;
   private intervalId: Timer | null = null;
 
   constructor() {
     this.config = new ConfigService();
     this.scraper = new NWDBScraper();
-    
+
     // Setup notification services
     const chatIds = this.config.get<string>('TELEGRAM_CHAT_IDS');
     const firstChatId = chatIds?.split(',')[0]?.trim(); // Use first chat ID for notifications
-    
+
     const telegram = new TelegramNotificationService(
       this.config.get('TELEGRAM_BOT_TOKEN'),
       firstChatId
     );
-    
-    const webhook = new WebhookNotificationService(
-      this.config.get('WEBHOOK_URL')
-    );
-    
+
+    const webhook = new WebhookNotificationService(this.config.get('WEBHOOK_URL'));
+
     this.notificationService = new CompositeNotificationService([telegram, webhook]);
-    
+
     // Setup bot service
     this.botService = new TelegramBotService(
       this.config.get('TELEGRAM_BOT_TOKEN'),
       this.config.get('TELEGRAM_CHAT_IDS'),
       () => this.state
     );
-    
+
     // Setup repositories
     this.stateRepository = new JsonStateRepository(this.config.get('STATE_FILE'));
     this.historyRepository = new JsonHistoryRepository(this.config.get('HISTORY_FILE'));
-    
+
     // Setup use cases
     this.monitorUseCase = new MonitorServerUseCase(
       this.scraper,
@@ -66,9 +63,7 @@ class ServerMonitorApp {
       this.historyRepository,
       this.config
     );
-    
-    this.statsUseCase = new GetStatisticsUseCase(this.historyRepository);
-    
+
     // Initialize state
     this.state = {
       servers: new Map(),
@@ -76,9 +71,9 @@ class ServerMonitorApp {
         totalServersMonitored: 0,
         totalChecksPerformed: 0,
         totalNotificationsSent: 0,
-        monitoringStartTime: new Date()
+        monitoringStartTime: new Date(),
       },
-      lastCheckTime: new Date()
+      lastCheckTime: new Date(),
     };
   }
 
@@ -87,8 +82,8 @@ class ServerMonitorApp {
     console.log('===================================');
     const servers = this.config.getServers();
     console.log(`📡 Monitoring ${servers.length} server(s):`);
-    servers.forEach(server => {
-      const triggerCount = server.events.triggers.filter(t => t.enabled).length;
+    servers.forEach((server) => {
+      const triggerCount = server.events.triggers.filter((t) => t.enabled).length;
       console.log(`   - ${server.name} (${triggerCount} active triggers)`);
     });
     console.log(`⏱️  Check interval: ${this.config.getCheckInterval() / 1000}s`);
@@ -120,15 +115,12 @@ class ServerMonitorApp {
     await this.checkAllServers();
 
     // Setup periodic checks
-    this.intervalId = setInterval(
-      () => this.checkAllServers(),
-      this.config.getCheckInterval()
-    );
+    this.intervalId = setInterval(() => this.checkAllServers(), this.config.getCheckInterval());
   }
 
   private async checkAllServers(): Promise<void> {
     const servers = this.config.getServers();
-    
+
     for (const server of servers) {
       try {
         await this.monitorUseCase.execute(server.name, this.state);
@@ -147,18 +139,20 @@ class ServerMonitorApp {
     console.log('\n📊 Global Statistics:');
     console.log(`   Total Servers: ${this.state.globalStats.totalServersMonitored}`);
     console.log(`   Total Checks: ${this.state.globalStats.totalChecksPerformed}`);
-    console.log(`   Monitoring Since: ${this.state.globalStats.monitoringStartTime.toLocaleString()}`);
+    console.log(
+      `   Monitoring Since: ${this.state.globalStats.monitoringStartTime.toLocaleString()}`
+    );
     console.log(`   Last Check: ${this.state.lastCheckTime.toLocaleString()}\n`);
   }
 
   private setupShutdownHandlers(): void {
     const shutdown = async () => {
       console.log('\n\n👋 Shutting down...');
-      
+
       if (this.intervalId) {
         clearInterval(this.intervalId);
       }
-      
+
       this.botService.stop();
       await this.scraper.close();
       console.log('💾 State saved');
@@ -172,7 +166,7 @@ class ServerMonitorApp {
 
 // Start the application
 const app = new ServerMonitorApp();
-app.start().catch(error => {
+app.start().catch((error) => {
   console.error('❌ Fatal error:', error);
   process.exit(1);
 });
