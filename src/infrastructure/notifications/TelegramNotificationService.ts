@@ -106,7 +106,7 @@ ${header}
       [NotificationType.SERVER_OFFLINE]: '❌',
       [NotificationType.QUEUE_THRESHOLD]: '⏳',
       [NotificationType.MONITORING_STARTED]: '🔍',
-      [NotificationType.ERROR]: '❌'
+      [NotificationType.ERROR]: '❌',
     };
 
     return emojiMap[type] || '📢';

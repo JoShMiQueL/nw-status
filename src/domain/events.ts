@@ -2,8 +2,6 @@
  * Event System - Configurable triggers and event definitions
  */
 
-import type { ServerStatus } from './types';
-
 /**
  * Available event types that can be monitored
  */
@@ -13,7 +11,7 @@ export enum EventType {
   TRANSFER_FROM_CHANGE = 'transfer_from_change',
   QUEUE_CHANGE = 'queue_change',
   POPULATION_CHANGE = 'population_change',
-  CHARACTER_CREATION_CHANGE = 'character_creation_change'
+  CHARACTER_CREATION_CHANGE = 'character_creation_change',
 }
 
 /**
@@ -28,9 +26,9 @@ export interface EventTrigger {
  * Simple trigger without options (binary state change)
  */
 export interface SimpleEventTrigger extends EventTrigger {
-  type: 
-    | EventType.SERVER_STATUS_CHANGE 
-    | EventType.TRANSFER_TO_CHANGE 
+  type:
+    | EventType.SERVER_STATUS_CHANGE
+    | EventType.TRANSFER_TO_CHANGE
     | EventType.TRANSFER_FROM_CHANGE
     | EventType.CHARACTER_CREATION_CHANGE;
 }
@@ -64,8 +62,8 @@ export interface EventConfiguration {
 export interface DetectedEvent {
   trigger: AnyEventTrigger;
   serverName: string;
-  previousValue: any;
-  currentValue: any;
+  previousValue: string | number | boolean;
+  currentValue: string | number | boolean;
   message: string;
   timestamp: Date;
 }
@@ -99,7 +97,7 @@ export function createThresholdTrigger(
   return {
     type,
     enabled,
-    options: { threshold, direction }
+    options: { threshold, direction },
   };
 }
 
@@ -110,5 +108,5 @@ export const DEFAULT_EVENT_CONFIG: EventConfiguration = {
   triggers: [
     createSimpleTrigger(EventType.TRANSFER_TO_CHANGE, true),
     createSimpleTrigger(EventType.SERVER_STATUS_CHANGE, true),
-  ]
+  ],
 };

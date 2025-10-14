@@ -3,7 +3,7 @@
  * Persists monitor state to a JSON file using Bun's native file API
  */
 
-import { join, dirname } from 'path';
+import { join } from 'node:path';
 import type { IStateRepository } from '../../domain/interfaces';
 import type { MonitorState, ServerMonitorState } from '../../domain/types';
 
@@ -17,11 +17,11 @@ export class JsonStateRepository implements IStateRepository {
   async load(): Promise<MonitorState | null> {
     try {
       const file = Bun.file(this.stateFile);
-      
+
       if (await file.exists()) {
         const data = await file.text();
         const parsed = JSON.parse(data);
-        
+
         // Convert plain objects back to Map
         const servers = new Map<string, ServerMonitorState>();
         if (parsed.servers) {
@@ -33,7 +33,7 @@ export class JsonStateRepository implements IStateRepository {
         return {
           servers,
           globalStats: parsed.globalStats,
-          lastCheckTime: new Date(parsed.lastCheckTime)
+          lastCheckTime: new Date(parsed.lastCheckTime),
         };
       }
     } catch (error) {
@@ -49,13 +49,16 @@ export class JsonStateRepository implements IStateRepository {
       const serializable = {
         servers: Object.fromEntries(state.servers),
         globalStats: state.globalStats,
-        lastCheckTime: state.lastCheckTime.toISOString()
+        lastCheckTime: state.lastCheckTime.toISOString(),
       };
 
       // Bun.write automatically creates parent directories
       await Bun.write(this.stateFile, JSON.stringify(serializable, null, 2));
     } catch (error) {
-      console.error('❌ Could not save state file:', error instanceof Error ? error.message : error);
+      console.error(
+        '❌ Could not save state file:',
+        error instanceof Error ? error.message : error
+      );
     }
   }
 
@@ -66,7 +69,10 @@ export class JsonStateRepository implements IStateRepository {
         await Bun.write(this.stateFile, '{}');
       }
     } catch (error) {
-      console.error('❌ Could not clear state file:', error instanceof Error ? error.message : error);
+      console.error(
+        '❌ Could not clear state file:',
+        error instanceof Error ? error.message : error
+      );
     }
   }
 }

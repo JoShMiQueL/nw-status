@@ -10,7 +10,7 @@ export class CompositeNotificationService implements INotificationService {
   constructor(private readonly services: INotificationService[]) {}
 
   async send(payload: NotificationPayload): Promise<boolean> {
-    const configuredServices = this.services.filter(s => s.isConfigured());
+    const configuredServices = this.services.filter((s) => s.isConfigured());
 
     if (configuredServices.length === 0) {
       console.warn('⚠️ No notification services configured');
@@ -18,17 +18,15 @@ export class CompositeNotificationService implements INotificationService {
     }
 
     const results = await Promise.allSettled(
-      configuredServices.map(service => service.send(payload))
+      configuredServices.map((service) => service.send(payload))
     );
 
-    const successCount = results.filter(
-      r => r.status === 'fulfilled' && r.value === true
-    ).length;
+    const successCount = results.filter((r) => r.status === 'fulfilled' && r.value === true).length;
 
     return successCount > 0;
   }
 
   isConfigured(): boolean {
-    return this.services.some(s => s.isConfigured());
+    return this.services.some((s) => s.isConfigured());
   }
 }

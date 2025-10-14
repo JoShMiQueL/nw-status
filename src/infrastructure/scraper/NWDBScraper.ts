@@ -6,7 +6,22 @@
 import puppeteer, { type Browser, type Page } from 'puppeteer';
 import type { IServerScraper } from '../../domain/interfaces';
 import type { ServerStatus } from '../../domain/types';
-import { ServerState, PopulationLevel } from '../../domain/types';
+import { PopulationLevel, ServerState } from '../../domain/types';
+
+interface RawServerData {
+  name: string;
+  status: string;
+  worldSet: string;
+  region: string;
+  population: string;
+  queue: string;
+  waitTime: string;
+  canTransferTo: boolean;
+  canTransferFrom: boolean;
+  canCreateCharacter: boolean;
+  isFreshStart: boolean;
+  isReturnToAeternum: boolean;
+}
 
 export class NWDBScraper implements IServerScraper {
   private browser: Browser | null = null;
@@ -21,15 +36,15 @@ export class NWDBScraper implements IServerScraper {
       try {
         if (attempt > 1) {
           console.log(`🔄 Retry attempt ${attempt}/${this.maxRetries} for ${serverName}...`);
-          await new Promise(resolve => setTimeout(resolve, 3000));
+          await new Promise((resolve) => setTimeout(resolve, 3000));
         }
 
         browser = await this.launchBrowser();
         page = await this.createPage(browser);
-        
+
         await page.goto(this.url, {
           waitUntil: 'domcontentloaded',
-          timeout: 60000
+          timeout: 60000,
         });
 
         await page.waitForSelector('table.table tbody tr', { timeout: 45000 });
@@ -41,7 +56,10 @@ export class NWDBScraper implements IServerScraper {
 
         return serverData;
       } catch (error) {
-        console.error(`❌ Error on attempt ${attempt}:`, error instanceof Error ? error.message : error);
+        console.error(
+          `❌ Error on attempt ${attempt}:`,
+          error instanceof Error ? error.message : error
+        );
 
         await this.cleanup(page, browser);
 
@@ -65,7 +83,7 @@ export class NWDBScraper implements IServerScraper {
 
       await page.goto(this.url, {
         waitUntil: 'domcontentloaded',
-        timeout: 60000
+        timeout: 60000,
       });
 
       await page.waitForSelector('table.table tbody tr', { timeout: 45000 });
@@ -77,7 +95,10 @@ export class NWDBScraper implements IServerScraper {
 
       return servers;
     } catch (error) {
-      console.error('❌ Error fetching all servers:', error instanceof Error ? error.message : error);
+      console.error(
+        '❌ Error fetching all servers:',
+        error instanceof Error ? error.message : error
+      );
       await this.cleanup(page, browser);
       return [];
     }
@@ -96,17 +117,17 @@ export class NWDBScraper implements IServerScraper {
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
-        '--disable-blink-features=AutomationControlled'
-      ]
+        '--disable-blink-features=AutomationControlled',
+      ],
     });
 
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
     return browser;
   }
 
   private async createPage(browser: Browser): Promise<Page> {
     const page = await browser.newPage();
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     await page.setUserAgent(
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -114,7 +135,7 @@ export class NWDBScraper implements IServerScraper {
 
     await page.setExtraHTTPHeaders({
       'Accept-Language': 'en-US,en;q=0.9',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
     });
 
     return page;
@@ -130,7 +151,7 @@ export class NWDBScraper implements IServerScraper {
 
         if (serverNameCell === name) {
           const infoCell = cells[2];
-          
+
           return {
             name: serverNameCell,
             status: cells[0]?.textContent?.trim() || '',
@@ -143,7 +164,7 @@ export class NWDBScraper implements IServerScraper {
             canTransferFrom: !infoCell?.querySelector('.flag-is-transfer-from-disabled'),
             canCreateCharacter: !infoCell?.querySelector('.flag-is-character-creation-disabled'),
             isFreshStart: !!infoCell?.querySelector('.flag-is-fresh-start'),
-            isReturnToAeternum: !!infoCell?.querySelector('.flag-is-return-to-aeternum')
+            isReturnToAeternum: !!infoCell?.querySelector('.flag-is-return-to-aeternum'),
           };
         }
       }
@@ -161,11 +182,11 @@ export class NWDBScraper implements IServerScraper {
   private async extractAllServers(page: Page): Promise<ServerStatus[]> {
     const serversData = await page.evaluate(() => {
       const rows = Array.from(document.querySelectorAll('tbody tr'));
-      
-      return rows.map(row => {
+
+      return rows.map((row) => {
         const cells = Array.from(row.querySelectorAll('td'));
         const infoCell = cells[2];
-        
+
         return {
           name: cells[1]?.textContent?.trim() || '',
           status: cells[0]?.textContent?.trim() || '',
@@ -178,17 +199,15 @@ export class NWDBScraper implements IServerScraper {
           canTransferFrom: !infoCell?.querySelector('.flag-is-transfer-from-disabled'),
           canCreateCharacter: !infoCell?.querySelector('.flag-is-character-creation-disabled'),
           isFreshStart: !!infoCell?.querySelector('.flag-is-fresh-start'),
-          isReturnToAeternum: !!infoCell?.querySelector('.flag-is-return-to-aeternum')
+          isReturnToAeternum: !!infoCell?.querySelector('.flag-is-return-to-aeternum'),
         };
       });
     });
 
-    return serversData
-      .filter(data => data.name)
-      .map(data => this.parseServerData(data));
+    return serversData.filter((data) => data.name).map((data) => this.parseServerData(data));
   }
 
-  private parseServerData(rawData: any): ServerStatus {
+  private parseServerData(rawData: RawServerData): ServerStatus {
     return {
       name: rawData.name,
       status: this.parseServerState(rawData.status),
@@ -202,7 +221,7 @@ export class NWDBScraper implements IServerScraper {
       canCreateCharacter: rawData.canCreateCharacter,
       isFreshStart: rawData.isFreshStart,
       isReturnToAeternum: rawData.isReturnToAeternum,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
   }
 
@@ -226,14 +245,14 @@ export class NWDBScraper implements IServerScraper {
   private parseQueue(queue: string): number {
     const cleaned = queue.replace(/,/g, '');
     const parsed = parseInt(cleaned, 10);
-    return isNaN(parsed) ? 0 : parsed;
+    return Number.isNaN(parsed) ? 0 : parsed;
   }
 
   private async cleanup(page: Page | null, browser: Browser | null): Promise<void> {
     if (page) {
       try {
         await page.close();
-      } catch (e) {
+      } catch (_e) {
         // Ignore
       }
     }
@@ -241,7 +260,7 @@ export class NWDBScraper implements IServerScraper {
     if (browser) {
       try {
         await browser.close();
-      } catch (e) {
+      } catch (_e) {
         // Ignore
       }
     }
