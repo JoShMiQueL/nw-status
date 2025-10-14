@@ -1,0 +1,198 @@
+name: Version Bump & Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+          - prerelease
+        default: 'patch'
+
+jobs:
+  version-and-release:
+    name: Bump Version and Create Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.final_version.outputs.version }}
+      changelog: ${{ steps.changelog.outputs.changelog }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Get current version
+        id: current_version
+        run: |
+          CURRENT_VERSION=$(bun pm pkg get version | tr -d '"')
+          echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $CURRENT_VERSION"
+
+      - name: Check if tag exists
+        id: check_tag
+        run: |
+          CURRENT_VERSION="${{ steps.current_version.outputs.version }}"
+          if git rev-parse "v$CURRENT_VERSION" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Tag v$CURRENT_VERSION already exists"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Tag v$CURRENT_VERSION does not exist"
+          fi
+
+      - name: Bump version if tag exists
+        if: steps.check_tag.outputs.exists == 'true'
+        run: |
+          echo "Tag already exists, bumping version..."
+          bun pm version ${{ inputs.bump_type }} --message "chore: bump version to %s"
+          NEW_VERSION=$(bun pm pkg get version | tr -d '"')
+          echo "New version: $NEW_VERSION"
+
+      - name: Create tag if doesn't exist
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          CURRENT_VERSION="${{ steps.current_version.outputs.version }}"
+          echo "Creating tag for existing version v$CURRENT_VERSION"
+          git tag -a "v$CURRENT_VERSION" -m "Release v$CURRENT_VERSION"
+
+      - name: Get final version
+        id: final_version
+        run: |
+          FINAL_VERSION=$(bun pm pkg get version | tr -d '"')
+          echo "version=$FINAL_VERSION" >> $GITHUB_OUTPUT
+          echo "Final version: $FINAL_VERSION"
+
+      - name: Push changes
+        run: |
+          git push origin main --follow-tags
+          echo "✅ Pushed version v${{ steps.final_version.outputs.version }}"
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          
+          if [ -z "$PREV_TAG" ]; then
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges | head -20)
+          else
+            CHANGELOG=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          fi
+          
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+  build-windows-exe:
+    name: Build Windows .exe
+    runs-on: windows-latest
+    needs: version-and-release
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.version-and-release.outputs.version }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.0
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build executable
+        run: bun build src/index.ts --compile --outfile dist/nw-monitor.exe
+          
+      - name: Copy config files
+        run: |
+          Copy-Item .env.example dist/.env.example
+          Copy-Item config.example.json dist/config.example.json
+          Copy-Item scripts/README-dist.md dist/README.md
+        shell: pwsh
+
+      - name: Create release package
+        run: |
+          cd dist
+          Compress-Archive -Path * -DestinationPath ../nw-monitor-windows-x64.zip
+        shell: pwsh
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.version-and-release.outputs.version }}
+          files: nw-monitor-windows-x64.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [version-and-release, build-windows-exe]
+    
+    steps:
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.version-and-release.outputs.version }}
+          name: Release v${{ needs.version-and-release.outputs.version }}
+          body: |
+            ## 🚀 New World Server Monitor v${{ needs.version-and-release.outputs.version }}
+            
+            ### 📝 Changes
+            ${{ needs.version-and-release.outputs.changelog }}
+            
+            ### 📦 Installation Options
+            
+            #### Windows Executable
+            Download `nw-monitor-windows-x64.zip`, extract and run `nw-monitor.exe`
+            
+            #### Docker
+            ```bash
+            # Docker Hub
+            docker pull joshmiquel/nw-status:v${{ needs.version-and-release.outputs.version }}
+            
+            # GitHub Container Registry
+            docker pull ghcr.io/${{ github.repository }}:v${{ needs.version-and-release.outputs.version }}
+            ```
+            
+            #### From Source
+            ```bash
+            git clone https://github.com/${{ github.repository }}.git
+            cd nw-status
+            git checkout v${{ needs.version-and-release.outputs.version }}
+            bun install
+            cp .env.example .env
+            cp config.example.json config.json
+            # Configure .env and config.json
+            bun start
+            ```
+            
+            ### 📚 Documentation
+            - [Quick Start Guide](https://github.com/${{ github.repository }}/blob/v${{ needs.version-and-release.outputs.version }}/QUICKSTART.md)
+            - [Docker Guide](https://github.com/${{ github.repository }}/blob/v${{ needs.version-and-release.outputs.version }}/DOCKER.md)
+            - [Windows Guide](https://github.com/${{ github.repository }}/blob/v${{ needs.version-and-release.outputs.version }}/WINDOWS.md)
+          draft: false
+          prerelease: ${{ contains(needs.version-and-release.outputs.version, '-') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

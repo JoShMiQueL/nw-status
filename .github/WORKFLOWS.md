@@ -22,53 +22,90 @@ git push origin main
 
 ---
 
-### 2. **Docker Build**
+### 2. **Docker Build (GitHub Container Registry)**
 **Archivo:** `.github/workflows/docker.yml`  
-**Trigger:** Push a `main` y tags `v*`
+**Trigger:** Solo en releases publicados
 
 **Tareas:**
 - 🐳 Construye imagen Docker
 - 📦 Publica a GitHub Container Registry (ghcr.io)
-- 🏷️ Etiqueta con versión y SHA
+- 🏷️ Etiqueta con versión
 
 **Uso:**
 ```bash
-# Publicar nueva versión
+# Crear release (esto dispara el build)
 git tag v1.0.0
 git push origin v1.0.0
+# Luego crear release en GitHub UI
 
 # Pull de la imagen
 docker pull ghcr.io/tu-usuario/nw-status:latest
 ```
 
+### 2b. **Docker Hub Deploy**
+**Archivo:** `.github/workflows/docker-hub.yml`  
+**Trigger:** Solo en releases publicados
+
+**Tareas:**
+- 🐳 Construye imagen Docker multi-platform
+- 📦 Publica a Docker Hub
+- 🏷️ Etiqueta con versión
+
+**Uso:**
+```bash
+# Se ejecuta automáticamente al publicar release
+# Pull de la imagen
+docker pull joshmiquel/nw-status:latest
+```
+
 ---
 
-### 3. **Release Automation**
+### 3. **Version Bump & Release** ⭐ NUEVO
+**Archivo:** `.github/workflows/version-bump.yml`  
+**Trigger:** Manual (workflow_dispatch)
+
+**Tareas:**
+- 🔢 Verifica si existe tag para la versión actual
+- 📈 Si existe: Incrementa versión en `package.json` según el tipo seleccionado
+- 🏷️ Si no existe: Crea tag para la versión actual
+- 📝 Genera changelog automático
+- 🚀 Crea GitHub Release
+- 🐳 Dispara builds de Docker automáticamente
+
+**Uso:**
+```bash
+# Desde GitHub UI:
+# Actions > Version Bump & Release > Run workflow
+# Selecciona: patch (1.0.0 → 1.0.1)
+#            minor (1.0.0 → 1.1.0)
+#            major (1.0.0 → 2.0.0)
+#            prerelease (1.0.0 → 1.0.1-0)
+```
+
+**Flujo automático:**
+1. Ejecutas el workflow manualmente
+2. Se verifica si existe tag para la versión actual
+3. Si existe → Incrementa versión y crea nuevo tag
+4. Si no existe → Crea tag para versión actual
+5. Push de cambios
+6. Crea GitHub Release
+7. Esto dispara automáticamente:
+   - Build de .exe (release.yml)
+   - Build de Docker (docker.yml)
+
+### 3b. **Release Automation**
 **Archivo:** `.github/workflows/release.yml`  
-**Trigger:** Tags con formato `v*.*.*`, Manual (workflow_dispatch)
+**Trigger:** Tags con formato `v*.*.*`
 
 **Tareas:**
 - 🪟 Compila ejecutable de Windows (.exe)
 - 📦 Empaqueta con archivos de configuración
-- 📝 Genera changelog automático
-- 🚀 Crea GitHub Release
-- 📋 Incluye instrucciones de instalación
+- 📋 Adjunta .exe al release
 
 **Uso:**
 ```bash
-# Crear nueva release
-git tag v1.0.0
-git push origin v1.0.0
-
-# El workflow automáticamente:
-# 1. Compila .exe en Windows
-# 2. Crea release con changelog
-# 3. Adjunta nw-monitor-windows-x64.zip
-```
-
-**Ejecución manual:**
-```bash
-# Desde GitHub: Actions > Release > Run workflow
+# Se ejecuta automáticamente cuando se crea un tag
+# (normalmente desde version-bump.yml)
 ```
 
 ---
