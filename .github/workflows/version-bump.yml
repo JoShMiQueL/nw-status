@@ -148,10 +148,33 @@ jobs:
           echo "version=$FINAL_VERSION" >> $GITHUB_OUTPUT
           echo "Final version: $FINAL_VERSION"
 
-      - name: Push changes
+      - name: Push changes to new branch
         run: |
-          git push origin main --follow-tags
-          echo "✅ Pushed version v${{ steps.final_version.outputs.version }}"
+          BRANCH_NAME="release/v${{ steps.final_version.outputs.version }}"
+          git checkout -b "$BRANCH_NAME"
+          git push origin "$BRANCH_NAME" --follow-tags
+          echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
+        id: push_branch
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: release/v${{ steps.final_version.outputs.version }}
+          base: main
+          title: "chore: release v${{ steps.final_version.outputs.version }}"
+          body: |
+            ## 🚀 Release v${{ steps.final_version.outputs.version }}
+            
+            This PR was automatically created by the version bump workflow.
+            
+            ### Changes
+            - Bumped version to v${{ steps.final_version.outputs.version }}
+            - Created tag v${{ steps.final_version.outputs.version }}
+            
+            **Please review and merge to trigger the release process.**
+          labels: release
+          draft: false
 
       - name: Generate changelog
         id: changelog
