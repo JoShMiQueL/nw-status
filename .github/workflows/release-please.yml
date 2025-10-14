@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - '.github/.release-please-manifest.json'
 
 permissions:
   contents: write
@@ -23,9 +21,6 @@ jobs:
       - name: Run Release Please
         id: release
         uses: googleapis/release-please-action@v4
-        with:
-          config-file: .github/release-please-config.json
-          manifest-file: .github/.release-please-manifest.json
 
   build-windows:
     name: Build Windows Executable
