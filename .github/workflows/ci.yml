@@ -24,10 +24,10 @@ jobs:
         run: bun install
 
       - name: Check code formatting with Biome
-        run: biome format .
+        run: bunx biome format .
 
       - name: Lint code with Biome
-        run: biome check .
+        run: bunx biome check .
 
       - name: Run TypeScript type check
         run: bun run typecheck || tsc --noEmit
