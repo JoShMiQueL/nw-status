@@ -33,9 +33,12 @@ class ServerMonitorApp {
     this.scraper = new NWDBScraper();
     
     // Setup notification services
+    const chatIds = this.config.get<string>('TELEGRAM_CHAT_IDS');
+    const firstChatId = chatIds?.split(',')[0]?.trim(); // Use first chat ID for notifications
+    
     const telegram = new TelegramNotificationService(
       this.config.get('TELEGRAM_BOT_TOKEN'),
-      this.config.get('TELEGRAM_CHAT_ID')
+      firstChatId
     );
     
     const webhook = new WebhookNotificationService(
@@ -47,7 +50,7 @@ class ServerMonitorApp {
     // Setup bot service
     this.botService = new TelegramBotService(
       this.config.get('TELEGRAM_BOT_TOKEN'),
-      this.config.get('TELEGRAM_CHAT_ID'),
+      this.config.get('TELEGRAM_CHAT_IDS'),
       () => this.state
     );
     

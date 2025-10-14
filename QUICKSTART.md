@@ -67,8 +67,13 @@ Edit `.env` with your Telegram credentials:
 
 ```env
 TELEGRAM_BOT_TOKEN=your_bot_token_here
-TELEGRAM_CHAT_ID=your_chat_id_here
+TELEGRAM_CHAT_IDS=your_chat_id_here
 ```
+
+**TELEGRAM_CHAT_IDS Options:**
+- **Single user**: `TELEGRAM_CHAT_IDS=123456789`
+- **Multiple users** (whitelist): `TELEGRAM_CHAT_IDS=123456789,987654321,555555555`
+- **Public mode** (anyone can use): Leave empty or don't set
 
 ### Optional: Customize Events
 
