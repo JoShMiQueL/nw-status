@@ -1,0 +1,17 @@
+# Environment variables
+.env
+
+# Bun
+node_modules
+bun.lockb
+
+# Logs
+*.log
+
+# State and data files
+monitor-state.json
+data/
+
+# OS
+.DS_Store
+Thumbs.db
