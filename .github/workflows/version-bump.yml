@@ -138,7 +138,7 @@ jobs:
         shell: pwsh
 
       - name: Upload to release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.version-and-release.outputs.version }}
           files: nw-monitor-windows-x64.zip
@@ -152,7 +152,7 @@ jobs:
     
     steps:
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.version-and-release.outputs.version }}
           name: Release v${{ needs.version-and-release.outputs.version }}
