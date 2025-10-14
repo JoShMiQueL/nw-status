@@ -155,6 +155,7 @@ jobs:
         id: push_branch
 
       - name: Create Pull Request
+        id: create_pr
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -172,3 +173,31 @@ jobs:
           
           **Please review and merge to trigger the release process.**" \
             --label release
+
+      - name: Cleanup on failure
+        if: failure()
+        run: |
+          VERSION="${{ steps.final_version.outputs.version }}"
+          BRANCH="release/v$VERSION"
+          
+          echo "🧹 Cleaning up after failure..."
+          
+          # Delete local tag if it exists
+          if git rev-parse "v$VERSION" >/dev/null 2>&1; then
+            echo "Deleting local tag v$VERSION"
+            git tag -d "v$VERSION"
+          fi
+          
+          # Delete remote tag if it exists
+          if git ls-remote --tags origin | grep -q "refs/tags/v$VERSION"; then
+            echo "Deleting remote tag v$VERSION"
+            git push origin ":refs/tags/v$VERSION" || true
+          fi
+          
+          # Delete remote branch if it exists
+          if git ls-remote --heads origin | grep -q "refs/heads/$BRANCH"; then
+            echo "Deleting remote branch $BRANCH"
+            git push origin ":$BRANCH" || true
+          fi
+          
+          echo "✅ Cleanup completed"
