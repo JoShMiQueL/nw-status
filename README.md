@@ -12,10 +12,11 @@ A professional server monitoring system for New World with multi-server support,
 - 💾 **Persistent state** - Survives restarts without duplicate notifications
 
 ### Advanced Features
+- 🎯 **Configurable event system** - Choose exactly which events trigger notifications
+- 📏 **Threshold-based alerts** - Set custom thresholds for queue and population changes
+- 🎛️ **Per-server event filtering** - Monitor different events for different servers
 - 📈 **Statistics tracking** - Historical data with uptime, queue analytics
 - 📜 **History storage** - Keep track of server status over time
-- 🚨 **Queue alerts** - Get notified when queue exceeds threshold
-- 🎯 **Feature flags** - Enable/disable features as needed
 - 🏗️ **Clean architecture** - Layered design with SOLID principles
 
 ## Prerequisites
@@ -48,35 +49,56 @@ bun install
    - Search for your bot on Telegram
    - Send `/start` to initiate the conversation
 
-### 3. Create Environment File
+### 3. Configure the Application
 
-Copy the example environment file and fill in your credentials:
+#### A. Create Configuration File
+
+Copy the example configuration file:
+
+```bash
+cp config.example.json config.json
+```
+
+Edit `config.json` to customize your monitoring:
+
+```json
+{
+  "checkInterval": 300000,
+  "features": {
+    "statistics": true,
+    "history": true
+  },
+  "servers": [
+    {
+      "name": "Nysa",
+      "enabled": true,
+      "events": {
+        "triggers": [
+          {
+            "type": "transfer_to_change",
+            "enabled": true
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+#### B. Create Environment File (Credentials)
+
+Copy the example environment file:
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` and configure:
+Edit `.env` and add your **sensitive credentials only**:
 
 ```env
-# Telegram notifications
 TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
 TELEGRAM_CHAT_ID=987654321
-
-# Webhook notifications (optional)
 WEBHOOK_URL=https://your-webhook.com/endpoint
-
-# Servers to monitor (comma-separated)
-SERVERS=Nysa,Valhalla,El Dorado
-
-# Check interval (milliseconds)
-CHECK_INTERVAL=300000
-
-# Features
-FEATURE_STATISTICS=true
-FEATURE_HISTORY=true
-FEATURE_QUEUE_ALERTS=false
-QUEUE_THRESHOLD=1000
 ```
 
 ## Usage
@@ -93,31 +115,245 @@ Or with auto-reload during development:
 bun dev
 ```
 
-### Configuration Options
+### Configuration Files
 
-#### Required
-- **`TELEGRAM_BOT_TOKEN`**: Your Telegram bot token from BotFather
-- **`TELEGRAM_CHAT_ID`**: Your Telegram chat ID
+#### `config.json` - Application Configuration
 
-#### Optional
-- **`WEBHOOK_URL`**: Custom webhook endpoint for notifications
-- **`SERVERS`**: Comma-separated list of servers to monitor
-- **`CHECK_INTERVAL`**: Check interval in milliseconds (default: `300000` = 5 minutes)
-- **`FEATURE_STATISTICS`**: Enable statistics tracking (default: `true`)
-- **`FEATURE_HISTORY`**: Enable history storage (default: `true`)
-- **`FEATURE_QUEUE_ALERTS`**: Enable queue threshold alerts (default: `false`)
-- **`QUEUE_THRESHOLD`**: Queue size to trigger alert (default: `1000`)
+All non-sensitive settings are configured here:
+
+| Field | Type | Description | Default |
+|-------|------|-------------|---------|
+| `servers` | `array` | List of server configurations | Required |
+| `servers[].name` | `string` | Server name (must match nwdb.info) | Required |
+| `servers[].enabled` | `boolean` | Whether to monitor this server | `true` |
+| `servers[].description` | `string` | Optional description | - |
+| `servers[].events` | `object` | Event configuration for this server | Required |
+| `checkInterval` | `number` | Check interval in milliseconds | `300000` |
+| `features.statistics` | `boolean` | Enable statistics tracking | `true` |
+| `features.history` | `boolean` | Enable history storage | `true` |
+| `storage.stateFile` | `string` | Path to state file | `"data/state.json"` |
+| `storage.historyFile` | `string` | Path to history file | `"data/history.json"` |
+
+**Note:** The file includes JSON Schema support for IDE autocomplete and validation.
+
+#### `.env` - Sensitive Credentials
+
+Only credentials are stored here:
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `TELEGRAM_BOT_TOKEN` | Yes | Your Telegram bot token from BotFather |
+| `TELEGRAM_CHAT_ID` | Yes | Your Telegram chat ID |
+| `WEBHOOK_URL` | No | Custom webhook endpoint for notifications |
+| `STATE_FILE` | No | Override state file path from config.json |
+| `HISTORY_FILE` | No | Override history file path from config.json |
+
+## Event Configuration
+
+The monitoring system uses a flexible event-based configuration that allows you to choose exactly which changes trigger notifications.
+
+### Available Event Types
+
+| Event Type | Description | Has Options |
+|------------|-------------|-------------|
+| `transfer_to_change` | Transfer TO server opens/closes | No |
+| `transfer_from_change` | Transfer FROM server opens/closes | No |
+| `server_status_change` | Server goes online/offline | No |
+| `character_creation_change` | Character creation opens/closes | No |
+| `queue_change` | Queue crosses threshold | Yes (threshold, direction) |
+| `population_change` | Population crosses threshold | Yes (threshold, direction) |
+
+### Configuration Format
+
+Each server has its own event configuration. This allows different monitoring rules per server:
+
+```json
+{
+  "servers": [
+    {
+      "name": "Nysa",
+      "enabled": true,
+      "events": {
+        "triggers": [
+          {
+            "type": "transfer_to_change",
+            "enabled": true,
+            "description": "Optional description"
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+### Event Options
+
+#### Simple Events (No Options)
+- `type`: Event type (see table above)
+- `enabled`: `true` or `false` (default: `true`)
+- `description`: Optional human-readable description
+
+#### Threshold Events (Queue & Population)
+- `type`: `queue_change` or `population_change`
+- `enabled`: `true` or `false` (default: `true`)
+- `options.threshold`: Numeric threshold value
+- `options.direction`: `"above"`, `"below"`, or `"both"` (default: `"both"`)
+- `description`: Optional human-readable description
+
+### Configuration Examples
+
+Edit your `config.json` file with these examples:
+
+#### 1. Single server - transfer monitoring only
+```json
+{
+  "servers": [
+    {
+      "name": "Nysa",
+      "enabled": true,
+      "events": {
+        "triggers": [
+          {
+            "type": "transfer_to_change",
+            "enabled": true
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+#### 2. Single server - multiple events
+```json
+{
+  "servers": [
+    {
+      "name": "Nysa",
+      "enabled": true,
+      "events": {
+        "triggers": [
+          {
+            "type": "transfer_to_change",
+            "enabled": true
+          },
+          {
+            "type": "server_status_change",
+            "enabled": true
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+#### 3. Queue threshold monitoring
+```json
+{
+  "servers": [
+    {
+      "name": "Nysa",
+      "enabled": true,
+      "events": {
+        "triggers": [
+          {
+            "type": "queue_change",
+            "enabled": true,
+            "options": {
+              "threshold": 300,
+              "direction": "both"
+            },
+            "description": "Notify when queue crosses 300"
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+#### 4. Multiple servers - different events per server
+```json
+{
+  "servers": [
+    {
+      "name": "Nysa",
+      "enabled": true,
+      "description": "Main server - full monitoring",
+      "events": {
+        "triggers": [
+          {
+            "type": "transfer_to_change",
+            "enabled": true
+          },
+          {
+            "type": "queue_change",
+            "enabled": true,
+            "options": {
+              "threshold": 300,
+              "direction": "both"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Valhalla",
+      "enabled": true,
+      "description": "Secondary server - transfers only",
+      "events": {
+        "triggers": [
+          {
+            "type": "transfer_to_change",
+            "enabled": true
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+#### 5. Disabled server (not monitored)
+```json
+{
+  "servers": [
+    {
+      "name": "Nysa",
+      "enabled": true,
+      "events": {
+        "triggers": [
+          {
+            "type": "transfer_to_change",
+            "enabled": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "El Dorado",
+      "enabled": false,
+      "description": "Temporarily disabled",
+      "events": {
+        "triggers": []
+      }
+    }
+  ]
+}
+```
+
+**Tip:** Use `config.example.json` as a starting point and the included JSON Schema for autocomplete in VS Code.
 
 ## How It Works
 
 1. **Scraping**: Uses Puppeteer to fetch server status from nwdb.info
-2. **Monitoring**: Tracks multiple servers and detects status changes
-3. **Notifications**: Sends alerts via Telegram and/or webhooks when:
-   - Transfer availability changes (locked ↔ available)
-   - Server goes online/offline
-   - Queue exceeds threshold (if enabled)
-4. **Persistence**: Saves state and history to JSON files
-5. **Statistics**: Calculates uptime, queue averages, and more
+2. **Event Evaluation**: Compares current status with previous state
+3. **Trigger Matching**: Checks configured triggers against detected changes
+4. **Notifications**: Sends alerts via Telegram and/or webhooks for matched events
+5. **Persistence**: Saves state and history to JSON files
+6. **Statistics**: Calculates uptime, queue averages, and more
 
 ## Output Example
 

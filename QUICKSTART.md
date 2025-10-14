@@ -23,21 +23,79 @@ bun install
 1. Search for your bot on Telegram (the name you gave it)
 2. Send `/start` to initiate the conversation
 
-## 3. Configure Environment
+## 3. Configure Application
 
-Copy the example file and edit it:
+### A. Create config.json
+
+Copy and edit the configuration file:
+
+```bash
+cp config.example.json config.json
+```
+
+Edit `config.json`:
+
+```json
+{
+  "checkInterval": 300000,
+  "servers": [
+    {
+      "name": "Nysa",
+      "enabled": true,
+      "events": {
+        "triggers": [
+          {
+            "type": "transfer_to_change",
+            "enabled": true
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+### B. Create .env (Credentials Only)
+
+Copy and edit the environment file:
 
 ```bash
 cp .env.example .env
 ```
 
-Edit the `.env` file and add your credentials:
+Edit `.env` with your Telegram credentials:
 
 ```env
 TELEGRAM_BOT_TOKEN=your_bot_token_here
 TELEGRAM_CHAT_ID=your_chat_id_here
-SERVERS=Nysa,Valhalla,El Dorado
-CHECK_INTERVAL=300000
+```
+
+### Optional: Customize Events
+
+See `EVENTS_GUIDE.md` for detailed examples. Quick configs:
+
+**Queue threshold monitoring:**
+```json
+{
+  "servers": [
+    {
+      "name": "Nysa",
+      "enabled": true,
+      "events": {
+        "triggers": [
+          {
+            "type": "queue_change",
+            "enabled": true,
+            "options": {
+              "threshold": 300,
+              "direction": "both"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
 ```
 
 ## 4. Start Monitoring
@@ -47,9 +105,9 @@ bun start
 ```
 
 The program will:
-- Send an initial status message to Telegram
 - Check the server every 5 minutes (or your configured interval)
-- Send a notification when transfer availability changes
+- Send notifications based on your configured events
+- Save state to avoid duplicate notifications on restart
 
 ## 5. Stop Monitoring
 

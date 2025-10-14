@@ -2,14 +2,14 @@
 .env
 
 # Bun
-node_modules
-bun.lockb
-
-# Logs
+node_modules/
+dist/
 *.log
 
-# State and data files
-monitor-state.json
+# User configuration (keep example files)
+config.json
+
+# Data files
 data/
 
 # OS
