@@ -14,11 +14,6 @@ on:
           - major
           - prerelease
         default: 'auto'
-      target_branch:
-        description: 'Target branch for the PR'
-        required: true
-        type: string
-        default: 'main'
 
 jobs:
   version-and-release:
@@ -160,7 +155,7 @@ jobs:
           git checkout -b "$BRANCH_NAME"
           git push origin "$BRANCH_NAME" --follow-tags
           
-          # Create PR using GitHub API
+          # Create PR using GitHub API (targets the branch where workflow was run)
           curl -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
@@ -170,7 +165,7 @@ jobs:
               \"title\": \"chore: release v$VERSION\",
               \"body\": \"## 🚀 Release v$VERSION\n\nThis PR was automatically created by the version bump workflow.\n\n### Changes\n- Bumped version to v$VERSION\n- Created tag v$VERSION\n\n**Please review and merge to trigger the release process.**\",
               \"head\": \"$BRANCH_NAME\",
-              \"base\": \"${{ inputs.target_branch }}\"
+              \"base\": \"${{ github.ref_name }}\"
             }"
         id: push_and_pr
 
