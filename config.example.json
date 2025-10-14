@@ -1,5 +1,5 @@
 {
-  "$schema": "./config.schema.json",
+  "$schema": "https://raw.githubusercontent.com/JoShMiQueL/nw-status/main/config.schema.json",
   "checkInterval": 300000,
   "features": {
     "statistics": true,

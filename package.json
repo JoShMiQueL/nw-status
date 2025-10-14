@@ -11,7 +11,7 @@
     "test": "bun test",
     "build": "bun build src/index.ts --outdir dist --target bun",
     "build:exe": "bun build src/index.ts --compile --outfile dist/nw-monitor.exe && npm run build:copy-files",
-    "build:copy-files": "node scripts/copy-build-files.js",
+    "build:copy-files": "bun scripts/copy-build-files.ts",
     "docker:build": "docker build -t nw-status .",
     "docker:run": "docker run --rm -v $(pwd)/config.json:/app/config.json:ro -v $(pwd)/.env:/app/.env:ro -v $(pwd)/data:/app/data nw-status"
   },
