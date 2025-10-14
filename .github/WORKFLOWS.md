@@ -1,273 +1,115 @@
-# 🔄 GitHub Actions Workflows
+# CI/CD Workflows
 
-Este proyecto utiliza varios workflows de GitHub Actions para automatización y CI/CD.
+This project uses a two-stage CI/CD workflow based on `release-please-action`.
 
-## 📋 Workflows Disponibles
+## Workflow Overview
 
-### 1. **CI (Continuous Integration)** 
-**Archivo:** `.github/workflows/ci.yml`  
-**Trigger:** Push y Pull Requests a `main` y `develop`
+### Stage 1: Version PR Creation (Automatic)
 
-**Tareas:**
-- ✅ Lint y Type Check de TypeScript
-- ✅ Ejecución de tests
-- ✅ Verificación de build
-- ✅ Validación de archivos de configuración JSON
+**Workflow**: `.github/workflows/release-please.yml`
 
-**Uso:**
-```bash
-# Se ejecuta automáticamente en cada push/PR
-git push origin main
-```
+**Trigger**: Push to `main`
 
----
+**What it does**:
+1. Analyzes commits since the last release
+2. Determines version type based on Conventional Commits:
+   - `feat:` → Minor version bump (0.1.0 → 0.2.0)
+   - `fix:` → Patch version bump (0.1.0 → 0.1.1)
+   - `feat!:` or `BREAKING CHANGE:` → Major version bump (0.1.0 → 1.0.0)
+3. Creates/updates an automatic PR with:
+   - Updated `package.json`
+   - Updated `CHANGELOG.md`
+   - Title: `chore(main): release nw-status vX.Y.Z`
 
-### 2. **Docker Build (GitHub Container Registry)**
-**Archivo:** `.github/workflows/docker.yml`  
-**Trigger:** Solo en releases publicados
-
-**Tareas:**
-- 🐳 Construye imagen Docker
-- 📦 Publica a GitHub Container Registry (ghcr.io)
-- 🏷️ Etiqueta con versión
-
-**Uso:**
-```bash
-# Crear release (esto dispara el build)
-git tag v1.0.0
-git push origin v1.0.0
-# Luego crear release en GitHub UI
-
-# Pull de la imagen
-docker pull ghcr.io/tu-usuario/nw-status:latest
-```
-
-### 2b. **Docker Hub Deploy**
-**Archivo:** `.github/workflows/docker-hub.yml`  
-**Trigger:** Solo en releases publicados
-
-**Tareas:**
-- 🐳 Construye imagen Docker multi-platform
-- 📦 Publica a Docker Hub
-- 🏷️ Etiqueta con versión
-
-**Uso:**
-```bash
-# Se ejecuta automáticamente al publicar release
-# Pull de la imagen
-docker pull joshmiquel/nw-status:latest
-```
+**Required action**: Review and merge the PR manually when ready for release.
 
 ---
 
-### 3. **Version Bump & Release** ⭐ NUEVO
-**Archivo:** `.github/workflows/version-bump.yml`  
-**Trigger:** Manual (workflow_dispatch)
+### Stage 2: Build and Publish (Automatic after merge)
 
-**Tareas:**
-- 🔢 Verifica si existe tag para la versión actual
-- 📈 Si existe: Incrementa versión en `package.json` según el tipo seleccionado
-- 🏷️ Si no existe: Crea tag para la versión actual
-- 📝 Genera changelog automático
-- 🚀 Crea GitHub Release
-- 🐳 Dispara builds de Docker automáticamente
+**Workflow**: `.github/workflows/publish-release.yml`
 
-**Uso:**
-```bash
-# Desde GitHub UI:
-# Actions > Version Bump & Release > Run workflow
-# Selecciona: patch (1.0.0 → 1.0.1)
-#            minor (1.0.0 → 1.1.0)
-#            major (1.0.0 → 2.0.0)
-#            prerelease (1.0.0 → 1.0.1-0)
-```
+**Trigger**: Tag creation `nw-status-v*` (happens automatically when release-please PR is merged)
 
-**Flujo automático:**
-1. Ejecutas el workflow manualmente
-2. Se verifica si existe tag para la versión actual
-3. Si existe → Incrementa versión y crea nuevo tag
-4. Si no existe → Crea tag para versión actual
-5. Push de cambios
-6. Crea GitHub Release
-7. Esto dispara automáticamente:
-   - Build de .exe (release.yml)
-   - Build de Docker (docker.yml)
+**What it does**:
 
-### 3b. **Release Automation**
-**Archivo:** `.github/workflows/release.yml`  
-**Trigger:** Tags con formato `v*.*.*`
+#### Job 1: Build Windows Executable
+- Compiles the Windows `.exe` executable
+- Creates a ZIP with the executable and configuration files
+- Uploads the artifact for the release
 
-**Tareas:**
-- 🪟 Compila ejecutable de Windows (.exe)
-- 📦 Empaqueta con archivos de configuración
-- 📋 Adjunta .exe al release
+#### Job 2: Build & Push Docker Images
+- Builds multi-architecture Docker images (amd64, arm64)
+- Publishes to GitHub Container Registry (ghcr.io)
+- Publishes to Docker Hub (optional)
+- Tags with:
+  - `vX.Y.Z` (specific version)
+  - `vX.Y` (minor version)
+  - `vX` (major version)
+  - `latest`
 
-**Uso:**
-```bash
-# Se ejecuta automáticamente cuando se crea un tag
-# (normalmente desde version-bump.yml)
-```
+#### Job 3: Attach Artifacts to Release
+- Attaches the Windows executable ZIP to the release created by release-please
 
 ---
 
-### 4. **CodeQL Security Analysis**
-**Archivo:** `.github/workflows/codeql.yml`  
-**Trigger:** Push, PR, y semanalmente (lunes)
+## Complete Flow Example
 
-**Tareas:**
-- 🔒 Análisis de seguridad del código
-- 🐛 Detección de vulnerabilidades
-- 📊 Reportes en Security tab
+1. **Developer commits to `main`**:
+   ```bash
+   git commit -m "feat: add new notification feature"
+   git push origin main
+   ```
 
-**Uso:**
-```bash
-# Se ejecuta automáticamente
-# Ver resultados en: GitHub > Security > Code scanning alerts
-```
+2. **Release-Please creates/updates PR automatically**:
+   - PR #X: "chore(main): release nw-status v0.2.0"
+   - Contains: `package.json` (v0.2.0) and updated `CHANGELOG.md`
 
----
+3. **Team reviews and merges the PR**:
+   - Tag `nw-status-v0.2.0` is created automatically
+   - Release v0.2.0 is created automatically by release-please (with CHANGELOG)
 
-### 5. **Dependabot**
-**Archivo:** `.github/dependabot.yml`  
-**Trigger:** Semanal (lunes) para npm, mensual para actions
+4. **Publish workflow triggers automatically**:
+   - ✅ Compiles Windows executable
+   - ✅ Builds and publishes Docker images
+   - ✅ Attaches Windows ZIP to the existing release
 
-**Tareas:**
-- 📦 Actualiza dependencias npm
-- 🔄 Actualiza GitHub Actions
-- 🤖 Crea PRs automáticos
-
-**Uso:**
-```bash
-# Automático - revisa y aprueba los PRs de Dependabot
-# Los PRs aparecen en la pestaña Pull Requests
-```
+5. **Release is ready**:
+   - Release v0.2.0 is now public on GitHub with all artifacts
 
 ---
 
-## 🚀 Configuración Inicial
+## Additional Workflows
 
-### 1. Habilitar GitHub Container Registry
+### Manual Pre-release
 
-Para publicar imágenes Docker:
+**Workflow**: `.github/workflows/manual-prerelease.yml`
 
-1. Ve a **Settings** > **Actions** > **General**
-2. En "Workflow permissions", selecciona:
-   - ✅ Read and write permissions
-   - ✅ Allow GitHub Actions to create and approve pull requests
+**Trigger**: Manual (workflow_dispatch)
 
-### 2. Habilitar CodeQL
+Allows creating pre-releases manually (e.g., `v1.0.0-beta.1`) without going through the normal release-please flow.
 
-1. Ve a **Settings** > **Code security and analysis**
-2. Habilita **CodeQL analysis**
+### CI Tests
 
-### 3. Configurar Secrets (si es necesario)
+**Workflow**: `.github/workflows/ci.yml`
 
-Si necesitas desplegar a servicios externos:
+**Trigger**: Pull requests and push to `main`
 
-```bash
-# Settings > Secrets and variables > Actions > New repository secret
-DEPLOY_TOKEN=tu_token_aqui
-```
+Runs tests, linting, and type checking.
 
----
+### CodeQL Security Scanning
 
-## 📊 Badges para README
+**Workflow**: `.github/workflows/codeql.yml`
 
-Añade estos badges a tu `README.md`:
+**Trigger**: Push to `main`, PRs, and weekly schedule
 
-```markdown
-![CI](https://github.com/tu-usuario/nw-status/workflows/CI/badge.svg)
-![Docker](https://github.com/tu-usuario/nw-status/workflows/Docker%20Build/badge.svg)
-![CodeQL](https://github.com/tu-usuario/nw-status/workflows/CodeQL/badge.svg)
-```
+Code security analysis.
 
 ---
 
-## 🔧 Personalización
+## Important Notes
 
-### Cambiar frecuencia de Dependabot
-
-Edita `.github/dependabot.yml`:
-
-```yaml
-schedule:
-  interval: "daily"  # daily, weekly, monthly
-  day: "monday"      # Para weekly
-```
-
-### Añadir más validaciones al CI
-
-Edita `.github/workflows/ci.yml`:
-
-```yaml
-- name: Run custom checks
-  run: |
-    bun run custom-check
-    bun run security-audit
-```
-
-### Despliegue automático
-
-Crea `.github/workflows/deploy.yml` para desplegar a tu servidor:
-
-```yaml
-name: Deploy
-
-on:
-  push:
-    branches: [ main ]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy to server
-        run: |
-          # Tu script de despliegue
-```
-
----
-
-## 🐛 Troubleshooting
-
-### El workflow de Docker falla
-
-**Problema:** Error de permisos al publicar imagen
-
-**Solución:**
-```bash
-# Verifica que los permisos de workflow están habilitados
-Settings > Actions > General > Workflow permissions
-```
-
-### CodeQL tarda mucho
-
-**Problema:** El análisis es lento
-
-**Solución:**
-```yaml
-# Reduce la frecuencia en codeql.yml
-schedule:
-  - cron: '0 0 * * 0'  # Solo domingos
-```
-
-### Tests fallan en CI pero funcionan localmente
-
-**Problema:** Diferencias de entorno
-
-**Solución:**
-```yaml
-# Añade variables de entorno en ci.yml
-env:
-  NODE_ENV: test
-  CI: true
-```
-
----
-
-## 📚 Recursos
-
-- [GitHub Actions Documentation](https://docs.github.com/en/actions)
-- [Dependabot Documentation](https://docs.github.com/en/code-security/dependabot)
-- [CodeQL Documentation](https://codeql.github.com/docs/)
-- [Docker Build Action](https://github.com/docker/build-push-action)
+- **Conventional Commits**: It's crucial to follow the convention so release-please calculates versions correctly
+- **Automatic Releases**: release-please creates the release automatically when the version PR is merged
+- **Docker Hub**: Requires configuring secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`
+- **Tags**: Tags follow the format `nw-status-vX.Y.Z` (includes package name)
