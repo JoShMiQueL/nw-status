@@ -1,0 +1,201 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  generate-changelog:
+    name: Generate Changelog
+    runs-on: ubuntu-latest
+    outputs:
+      changelog: ${{ steps.changelog.outputs.changelog }}
+      version: ${{ steps.version.outputs.version }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Get version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          
+          if [ -z "$PREV_TAG" ]; then
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges | head -20)
+          else
+            CHANGELOG=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          fi
+          
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+  build-windows-exe:
+    name: Build Windows .exe
+    runs-on: windows-latest
+    needs: generate-changelog
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.0
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build executable
+        run: bun build src/index.ts --compile --outfile dist/nw-monitor.exe
+          
+      - name: Copy config files
+        run: bun scripts/copy-build-files.ts
+
+      - name: Create release package
+        run: |
+          cd dist
+          Compress-Archive -Path * -DestinationPath ../nw-monitor-windows-x64.zip
+        shell: pwsh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-exe
+          path: nw-monitor-windows-x64.zip
+
+  build-docker:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+    needs: generate-changelog
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/nw-status
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Update Docker Hub description
+        uses: peter-evans/dockerhub-description@v5
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ secrets.DOCKERHUB_USERNAME }}/nw-status
+          short-description: "New World Server Status Monitor with Telegram notifications"
+          readme-filepath: ./DOCKER.md
+
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [generate-changelog, build-windows-exe, build-docker]
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-exe
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.generate-changelog.outputs.version }}
+          name: Release v${{ needs.generate-changelog.outputs.version }}
+          body: |
+            ## 🚀 New World Server Monitor v${{ needs.generate-changelog.outputs.version }}
+            
+            ### 📝 Changes
+            ${{ needs.generate-changelog.outputs.changelog }}
+            
+            ### 📦 Installation Options
+            
+            #### Windows Executable
+            Download `nw-monitor-windows-x64.zip`, extract and run `nw-monitor.exe`
+            
+            #### Docker
+            ```bash
+            # Docker Hub
+            docker pull joshmiquel/nw-status:v${{ needs.generate-changelog.outputs.version }}
+            
+            # GitHub Container Registry
+            docker pull ghcr.io/${{ github.repository }}:v${{ needs.generate-changelog.outputs.version }}
+            ```
+            
+            #### From Source
+            ```bash
+            git clone https://github.com/${{ github.repository }}.git
+            cd nw-status
+            git checkout v${{ needs.generate-changelog.outputs.version }}
+            bun install
+            cp .env.example .env
+            cp config.example.json config.json
+            # Configure .env and config.json
+            bun start
+            ```
+            
+            ### 📚 Documentation
+            - [Quick Start Guide](https://github.com/${{ github.repository }}/blob/v${{ needs.generate-changelog.outputs.version }}/QUICKSTART.md)
+            - [Docker Guide](https://github.com/${{ github.repository }}/blob/v${{ needs.generate-changelog.outputs.version }}/DOCKER.md)
+            - [Windows Guide](https://github.com/${{ github.repository }}/blob/v${{ needs.generate-changelog.outputs.version }}/WINDOWS.md)
+          files: nw-monitor-windows-x64.zip
+          draft: false
+          prerelease: ${{ contains(needs.generate-changelog.outputs.version, '-') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
