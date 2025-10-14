@@ -1,4 +1,4 @@
-# 🎮 New World Server Status Monitor v2.0
+# 🎮 New World Server Status Monitor v1.0.0
 
 A professional server monitoring system for New World with multi-server support, statistics tracking, and flexible notifications.
 
