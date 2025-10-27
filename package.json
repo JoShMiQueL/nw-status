@@ -18,7 +18,7 @@
     "docker:run": "docker run --rm -v $(pwd)/config.json:/app/config.json:ro -v $(pwd)/.env:/app/.env:ro -v $(pwd)/data:/app/data nw-status"
   },
   "dependencies": {
-    "puppeteer": "24.25.0"
+    "puppeteer": "24.26.1"
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.6",
